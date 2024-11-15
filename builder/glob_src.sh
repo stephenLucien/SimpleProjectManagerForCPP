@@ -29,9 +29,9 @@ CXX_SRC_LIST=${ABS_BUILD_DIR}/.glob_cxx
 IGNORE_SRC_LIST=${ABS_BUILD_DIR}/.glob_ignore
 SRC_MK=${ABS_BUILD_DIR}/src.mk
 ENTRY_MK=${ABS_BUILD_DIR}/makefile
-INIT_MK=${GLOB_RULES_DIR}/makefile.init
-DEFS_MK=${GLOB_RULES_DIR}/makefile.defs
-TARGET_MK=${GLOB_RULES_DIR}/makefile.target
+INIT_MK=${GLOB_RULES_DIR}/makefile.init.mk
+DEFS_MK=${GLOB_RULES_DIR}/makefile.defs.mk
+TARGET_MK=${GLOB_RULES_DIR}/makefile.target.mk
 
 # relative to ${ENTRY_MK}
 OBJ_DIR=objs
@@ -158,16 +158,12 @@ COM_COMPILE_FLAGS += -fno-omit-frame-pointer
 # COM_COMPILE_FLAGS += -fstack-protector
 # COM_COMPILE_FLAGS += -fno-caller-saves 
 # COM_COMPILE_FLAGS += -fmessage-length=0
-COM_COMPILE_FLAGS += -fsanitize=address
 COM_COMPILE_FLAGS += -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-variable -Wno-unused-parameter -Wno-unused-label -Wno-unused-function
 
 CFLAGS += \${COM_COMPILE_FLAGS}
 CXXFLAGS += \${COM_COMPILE_FLAGS} -fexceptions
 
 LDFLAGS += -Wl,--gc-sections
-LIBS += -lstdc++
-LIBS += -lpthread
-LIBS += -lasan
 
 TARGET = ${TARGET_NAME}
 
@@ -179,7 +175,7 @@ include $(basename ${SRC_MK})
 \${TARGET}: \${OBJS}
 	\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) \$(LIBS) \$^ -o \$@
 
-clean:
+clean::
 	rm -rf \${OBJS} \${DEPS}
 
 -include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${TARGET_MK})
