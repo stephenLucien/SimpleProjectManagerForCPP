@@ -1,0 +1,2 @@
+find ../src -iname '*.cpp'
+find ../src -iname '*.cc'
