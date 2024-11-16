@@ -242,8 +242,8 @@ int str2tokens(char* str, std::vector<char*>& tokens, const char* delim)
 
 std::vector<std::string> str_split(const std::string& s, const std::string& delimiter)
 {
-    std::vector<char> buf(s.size());
-    memcpy(buf.data(), s.c_str(), s.size());
+    std::vector<char> buf(s.length() + 1);
+    memcpy(buf.data(), s.c_str(), s.length() + 1);
     //
     std::vector<char*> tokens;
     str2tokens(buf.data(), tokens, delimiter.c_str());
@@ -306,9 +306,9 @@ int split_utf8_line(const std::string& line, std::vector<std::string>& lines, si
 
 void split_utf8_string(const std::string& content, std::vector<std::string>& lines, size_t max_line_sz)
 {
-    std::vector<char> buf(content.size());
+    std::vector<char> buf(content.length() + 1);
     //
-    memcpy(buf.data(), content.c_str(), content.size());
+    memcpy(buf.data(), content.c_str(), content.length() + 1);
     //
     std::vector<char*> tmplines;
     //
