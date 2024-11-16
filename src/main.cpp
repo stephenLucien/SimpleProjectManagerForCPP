@@ -1,12 +1,20 @@
 #include <cstring>
 #include <iostream>
 
+#include "app/app.h"
+#include "utils/compile_time.h"
 #include "utils/curl_wrapper.hpp"
 #include "utils/os_tools.h"
 
 int main(int argc, char *argv[])
 {
     os_setup_backtrace();
+    //
+    OS_PRINT(
+        "%s:\n"
+        "\tThis app built at %s",
+        argv[0],
+        COMPILE_TIME_STR(app));
     //
     OS_PRINT("hello world");
     //
@@ -16,7 +24,7 @@ int main(int argc, char *argv[])
     //
     std::unordered_map<std::string, std::string> query;
     //
-    std::vector<uint8_t> buffer(4096);
+    std::vector<uint8_t> buffer(1024 * 128);
     //
     int timeout_conn_ms = DEFAULT_CURL_CONNECT_TIMEOUT_MS;
     int timeout_ms      = DEFAULT_CURL_TIMEOUT_MS;

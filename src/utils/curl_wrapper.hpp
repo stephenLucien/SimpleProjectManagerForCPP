@@ -192,6 +192,54 @@ class CurlWrapper
 /**
  * @brief
  *
+ * @param [in] url
+ * @param [in] outputfile
+ * @param [out] wc
+ * @param timeout_conn_ms : Time-out connect operations after this amount of
+ miliseconds, if connects are OK within this time, then fine... This only aborts
+ the connect phase.
+ * - 0 : no timeout
+ * - positive : timeout connect url
+ * @param timeout_ms : Time-out the read operation after this amount of
+ miliseconds
+ * - 0 : no timeout
+ * - positive : timeout in miliseconds
+ * @param en_debug
+ * @return int :
+ * - 0 : success
+ * - other : err
+ */
+int curl_download_file(const char* url,
+                       const char* outputfile,
+                       size_t*     wc              = NULL,
+                       int         timeout_conn_ms = DEFAULT_CURL_CONNECT_TIMEOUT_MS,
+                       int         timeout_ms      = 0,
+                       int         en_debug        = 0);
+
+/**
+ * @brief
+ *
+ * @param [in] url
+ * @param [out] sz
+ * @param timeout_conn_ms : Time-out connect operations after this amount of
+ miliseconds, if connects are OK within this time, then fine... This only aborts
+ the connect phase.
+ * - 0 : no timeout
+ * - positive : timeout connect url
+ * @param timeout_ms : Time-out the read operation after this amount of
+ miliseconds
+ * - 0 : no timeout
+ * - positive : timeout in miliseconds
+ * @param en_debug
+ * @return int :
+ * - 0 : success
+ * - other : err
+ */
+int curl_get_file_size(const char* url, size_t* sz, int timeout_conn_ms = DEFAULT_CURL_CONNECT_TIMEOUT_MS, int timeout_ms = 0, int en_debug = 0);
+
+/**
+ * @brief
+ *
  * @param url
  * @param header
  * @param body

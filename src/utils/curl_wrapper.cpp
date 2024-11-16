@@ -33,10 +33,15 @@ static size_t curl_fwrite(void* ptr, size_t size, size_t nmemb, void* userdata)
 int curl_download_file(const char* url, const char* outputfile, size_t* wc, int timeout_conn_ms, int timeout_ms, int en_debug)
 {
     int ret = -1;
+    if (wc)
+    {
+        *wc = 0;
+    }
     if (!url || !outputfile)
     {
         return ret;
     }
+
 
     CURL_WRAPPER(curl, en_debug);
     FILE*    fp = NULL;
@@ -99,6 +104,10 @@ int curl_download_file(const char* url, const char* outputfile, size_t* wc, int 
 int curl_get_file_size(const char* url, size_t* sz, int timeout_conn_ms, int timeout_ms, int en_debug)
 {
     int ret = -1;
+    if (sz)
+    {
+        *sz = 0;
+    }
     if (!url)
     {
         return ret;

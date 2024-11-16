@@ -64,13 +64,16 @@ extern "C" {
 #define BUILD_MIN  ((BUILD_TIME_IS_BAD) ? 99 : COMPUTE_BUILD_MIN)
 #define BUILD_SEC  ((BUILD_TIME_IS_BAD) ? 99 : COMPUTE_BUILD_SEC)
 
-/**
- * @brief 获取编译时间
- *
- * @return time_t
- */
-#define DEFINE_COMPILE_TIME(tag) extern struct tm compile_time_of_##tag;
+#define DEFINE_COMPILE_TIME(tag)                                           \
+    extern struct tm    compile_time_of_##tag;                             \
+    static inline char* get_compile_time_of_##tag(char* buf, size_t bufsz) \
+    {                                                                      \
+        memset(buf, 0, bufsz);                                             \
+        strftime(buf, bufsz, "%Y-%m-%d %H:%M:%S", &compile_time_of_##tag); \
+        return buf;                                                        \
+    }
 
+#define COMPILE_TIME_STR(tag) get_compile_time_of_##tag((char*)__builtin_alloca(32), 32)
 
 #define IMPL_COMPILE_TIME(tag)                                                \
     struct tm compile_time_of_##tag = {.tm_sec   = COMPUTE_BUILD_SEC,         \
