@@ -124,6 +124,7 @@ function glob_list_to_mk() {
 STRIP_PATH = ${STRIP_PATH}
 
 INCLUDES += -I${SRC_RELATIVE_PATH}
+INCLUDES += -I${SRC_RELATIVE_PATH}/thirdparty
 
 C_SRCS = ${C_SRCS[@]}
 CXX_SRCS = ${CXX_SRCS[@]}
@@ -167,13 +168,23 @@ LDFLAGS += -Wl,--gc-sections
 
 TARGET = ${TARGET_NAME}
 
-all: \${TARGET}
+all: dump_compile_info \${TARGET}
 
 -include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${DEFS_MK})
 include $(basename ${SRC_MK})
 
 \${TARGET}: \${OBJS}
 	\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) \$(LIBS) \$^ -o \$@
+
+.PHONY: c_compiler cxx_compiler cppflags
+c_compiler:
+	@echo \$(CC) >\$@
+cxx_compiler:
+	@echo \$(CXX) >\$@
+cppflags:
+	@echo \$(INCLUDES) \$(CPPFLAGS) >\$@
+
+dump_compile_info: c_compiler cxx_compiler cppflags
 
 clean::
 	rm -rf \${OBJS} \${DEPS}
