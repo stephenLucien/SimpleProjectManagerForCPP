@@ -45,13 +45,13 @@ class CurlWrapper
             return;
         }
         //
-        os_log_printf(0, "curl", "header out: \n%s", pdata->buf_header_out);
+        os_log_printf(OS_LOG_DEBUG, "curl", "header out: \n%s", pdata->buf_header_out);
         //
-        os_log_printf(0, "curl", "data out: \n%s", pdata->buf_data_out);
+        os_log_printf(OS_LOG_DEBUG, "curl", "data out: \n%s", pdata->buf_data_out);
         //
-        os_log_printf(0, "curl", "header in: \n%s", pdata->buf_header_in);
+        os_log_printf(OS_LOG_DEBUG, "curl", "header in: \n%s", pdata->buf_header_in);
         //
-        os_log_printf(0, "curl", "data in: \n%s", pdata->buf_data_in);
+        os_log_printf(OS_LOG_DEBUG, "curl", "data in: \n%s", pdata->buf_data_in);
     }
 
     static int debug_func(CURL* handle, curl_infotype type, char* data, size_t size, void* clientp)
@@ -152,7 +152,7 @@ class CurlWrapper
         curl = curl_easy_init();
         if (!curl)
         {
-            os_log_printf(0, "curl", "curl_easy_init");
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
             return -1;
         }
         if (dumpInfo)

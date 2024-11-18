@@ -18,15 +18,15 @@
 #include <vector>
 
 //
-#include "pthread_mutex.hpp"
 #include "utils/cstring_proc.h"
+#include "utils/pthread_mutex.hpp"
 
 //
 static const int blocksz = 1024;
 //
-static PthreadMutex mtx;
-//
 static char log_buffer[blocksz * 4];
+//
+static PthreadMutex log_buffer_mtx;
 
 int system_wrap(char *buf, size_t bufsz, const char *msg, ...)
 {
@@ -59,10 +59,10 @@ int32_t os_set_epoch_time(time_t seconds)
 
     if (ret)
     {
-        os_log_printf(0, "os", "settimeofday failed, ret=%d, %s", ret, strerror(errno));
+        os_log_printf(OS_LOG_ERR, "os", "settimeofday failed, ret=%d, %s", ret, strerror(errno));
     } else
     {
-        os_log_printf(0, "os", "settimeofday okay");
+        os_log_printf(OS_LOG_INFO, "os", "settimeofday okay");
     }
     return ret;
 }
@@ -105,9 +105,30 @@ uint64_t os_logts_ms()
     return ts;
 }
 
-int __attribute__((weak)) os_log_write_impl(int prio, const char *tag, const char *text)
+int __attribute__((weak)) os_log_write_impl(int prio, const char *tag, const char *text, size_t text_len)
 {
-    return printf("[%s] %s\n", tag, text);
+    static PthreadMutex logMtx;
+    //
+    PthreadMutex::Writelock lock(logMtx);
+    //
+    int ret = -1;
+    //
+    FILE *fd = stdout;
+    //
+    auto wc1 = fprintf(fd, "%s/%s\t", os_log_prio_label(prio), tag);
+    //
+    auto wc2 = fwrite(text, 1, text_len, fd);
+    //
+    auto wc3 = fprintf(fd, "\n");
+
+    if (wc1 < 0 || wc2 < 0 || wc3 < 0)
+    {
+        ret = -1;
+    } else
+    {
+        ret = wc1 + wc2 + wc3;
+    }
+    return ret;
 }
 
 int os_log_write(int prio, const char *tag, const char *text)
@@ -119,7 +140,7 @@ int os_log_write(int prio, const char *tag, const char *text)
     //
     for (auto &l : lines)
     {
-        os_log_write_impl(prio, tag, l.c_str());
+        os_log_write_impl(prio, tag, l.c_str(), l.length());
         len += (int)l.length();
     }
 
@@ -129,7 +150,7 @@ int os_log_write(int prio, const char *tag, const char *text)
 
 int os_log_vprintf(int prio, const char *tag, const char *fmt, va_list ap)
 {
-    PthreadMutex::Writelock lock(mtx);
+    PthreadMutex::Writelock lock(log_buffer_mtx);
     //
     int ret;
     //
@@ -157,8 +178,6 @@ int os_log_printf(int prio, const char *tag, const char *fmt, ...)
     va_end(ap);
     return ret;
 }
-
-
 
 static void dump_backtrace(int sig_num, siginfo_t *info, void *ucontext)
 {

@@ -130,7 +130,7 @@ int openssl_hmac(const EVP_MD* md_info, const uint8_t* data, size_t datalen, con
         }
     } else
     {
-        os_log_printf(0, "crypto", "HMAC fail, %s", ERR_reason_error_string(ERR_get_error()));
+        os_log_printf(OS_LOG_ERR, "crypto", "HMAC fail, %s", ERR_reason_error_string(ERR_get_error()));
     }
 
     return ret;
@@ -208,7 +208,7 @@ int32_t openssl_cipher_do_crypt(const EVP_CIPHER* cipher,
         ctx = EVP_CIPHER_CTX_new();
         if (!ctx)
         {
-            os_log_printf(0, "crypto", "EVP_CIPHER_CTX_new fail, %s", ERR_reason_error_string(ERR_get_error()));
+            os_log_printf(OS_LOG_ERR, "crypto", "EVP_CIPHER_CTX_new fail, %s", ERR_reason_error_string(ERR_get_error()));
             break;
         }
 
@@ -216,7 +216,7 @@ int32_t openssl_cipher_do_crypt(const EVP_CIPHER* cipher,
         if (ret != 1)
         {
             ret = -1;
-            os_log_printf(0, "crypto", "EVP_CipherInit_ex fail, %s", ERR_reason_error_string(ERR_get_error()));
+            os_log_printf(OS_LOG_ERR, "crypto", "EVP_CipherInit_ex fail, %s", ERR_reason_error_string(ERR_get_error()));
             break;
         }
 
@@ -245,7 +245,7 @@ int32_t openssl_cipher_do_crypt(const EVP_CIPHER* cipher,
         {
             cipherLen = 0;
             ret       = -1;
-            os_log_printf(0, "crypto", "malloc: ret=%d", ret);
+            os_log_printf(OS_LOG_ERR, "crypto", "malloc: ret=%d", ret);
             break;
         }
 
@@ -254,7 +254,7 @@ int32_t openssl_cipher_do_crypt(const EVP_CIPHER* cipher,
         cipherLen  = tmplen;
         if (ret != 1)
         {
-            os_log_printf(0, "crypto", "EVP_CipherUpdate fail, %s", ERR_reason_error_string(ERR_get_error()));
+            os_log_printf(OS_LOG_ERR, "crypto", "EVP_CipherUpdate fail, %s", ERR_reason_error_string(ERR_get_error()));
             ret = -1;
             break;
         }
@@ -264,7 +264,7 @@ int32_t openssl_cipher_do_crypt(const EVP_CIPHER* cipher,
         ret          = EVP_CipherFinal_ex(ctx, cipherText + cipherLen, &finalLen);
         if (ret != 1)
         {
-            os_log_printf(0, "crypto", "EVP_CipherFinal_ex fail, %s", ERR_reason_error_string(ERR_get_error()));
+            os_log_printf(OS_LOG_ERR, "crypto", "EVP_CipherFinal_ex fail, %s", ERR_reason_error_string(ERR_get_error()));
             ret = -1;
             break;
         }
@@ -471,7 +471,7 @@ EVP_PKEY* openssl_create_pkey(int is_pub, const char* key)
     }
     if (EVP_PKEY_assign_RSA(pkey, rsa) <= 0)
     {
-        os_log_printf(0, "crypto", "EVP_PKEY_assign_RSA fail, %s", ERR_reason_error_string(ERR_get_error()));
+        os_log_printf(OS_LOG_ERR, "crypto", "EVP_PKEY_assign_RSA fail, %s", ERR_reason_error_string(ERR_get_error()));
         EVP_PKEY_free(pkey);
         return NULL;
     }
@@ -500,24 +500,24 @@ int openssl_rsa_sign(
         ctx = EVP_MD_CTX_create();
         if (!ctx)
         {
-            os_log_printf(0, "crypto", "EVP_DigestSignInit fail, %s", ERR_reason_error_string(ERR_get_error()));
+            os_log_printf(OS_LOG_ERR, "crypto", "EVP_DigestSignInit fail, %s", ERR_reason_error_string(ERR_get_error()));
             break;
         }
 
         if (EVP_DigestSignInit(ctx, NULL, mdtype, NULL, pkey) <= 0)
         {
-            os_log_printf(0, "crypto", "EVP_DigestSignInit fail, %s", ERR_reason_error_string(ERR_get_error()));
+            os_log_printf(OS_LOG_ERR, "crypto", "EVP_DigestSignInit fail, %s", ERR_reason_error_string(ERR_get_error()));
             break;
         }
         if (EVP_DigestSignUpdate(ctx, data, datalen) <= 0)
         {
-            os_log_printf(0, "crypto", "EVP_DigestSignUpdate fail, %s", ERR_reason_error_string(ERR_get_error()));
+            os_log_printf(OS_LOG_ERR, "crypto", "EVP_DigestSignUpdate fail, %s", ERR_reason_error_string(ERR_get_error()));
             break;
         }
         size_t sigsz = 1024;
         if (EVP_DigestSignFinal(ctx, sig, &sigsz) <= 0)
         {
-            os_log_printf(0, "crypto", "EVP_DigestSignFinal fail, %s", ERR_reason_error_string(ERR_get_error()));
+            os_log_printf(OS_LOG_ERR, "crypto", "EVP_DigestSignFinal fail, %s", ERR_reason_error_string(ERR_get_error()));
             break;
         }
         if (siglen)

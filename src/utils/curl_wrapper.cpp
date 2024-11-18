@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 #include "nlohmann/json.hpp"
+#include "utils/os_tools.h"
 
 
 typedef struct
@@ -53,13 +54,13 @@ int curl_download_file(const char* url, const char* outputfile, size_t* wc, int 
         fp = fopen(outputfile, "wb");
         if (!fp)
         {
-            os_log_printf(0, "curl", "fail open %s", outputfile);
+            os_log_printf(OS_LOG_ERR, "curl", "fail open %s", outputfile);
             break;
         }
 
         if (!curl)
         {
-            os_log_printf(0, "curl", "curl_easy_init");
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
             break;
         }
 
@@ -86,7 +87,7 @@ int curl_download_file(const char* url, const char* outputfile, size_t* wc, int 
         res = curl_easy_perform(curl);
         if (res != CURLE_OK)
         {
-            os_log_printf(0, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
             break;
         }
         ret = 0;
@@ -121,7 +122,7 @@ int curl_get_file_size(const char* url, size_t* sz, int timeout_conn_ms, int tim
     {
         if (!curl)
         {
-            os_log_printf(0, "curl", "curl_easy_init");
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
             break;
         }
 
@@ -145,7 +146,7 @@ int curl_get_file_size(const char* url, size_t* sz, int timeout_conn_ms, int tim
         res = curl_easy_perform(curl);
         if (res != CURLE_OK)
         {
-            os_log_printf(0, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
             break;
         }
         double length_sz = 0;
@@ -154,7 +155,7 @@ int curl_get_file_size(const char* url, size_t* sz, int timeout_conn_ms, int tim
 
         if (res != CURLE_OK)
         {
-            os_log_printf(0,
+            os_log_printf(OS_LOG_ERR,
                           "curl",
                           "curl_easy_getinfo(CURLINFO_CONTENT_LENGTH_DOWNLOAD) "
                           "failed: %s",
@@ -168,7 +169,7 @@ int curl_get_file_size(const char* url, size_t* sz, int timeout_conn_ms, int tim
         }
         if (1)
         {
-            os_log_printf(0, "curl", "url:%s, len=%d ", url, *sz);
+            os_log_printf(OS_LOG_DEBUG, "curl", "url:%s, len=%d ", url, *sz);
         }
     } while (0);
 
@@ -195,7 +196,7 @@ static size_t http_write_cb(void* ptr, size_t size, size_t nmemb, void* userdata
     len = size * nmemb;
     if (!(data->wc + len <= data->bufsz))
     {
-        os_log_printf(0, "curl", "buf small");
+        os_log_printf(OS_LOG_ERR, "curl", "buf small");
         return len;
     }
     auto dst = data->buf + data->wc;
@@ -266,7 +267,7 @@ int curl_delete_basic(const std::string&                                  url,
         /* get a curl handle */
         if (!curl)
         {
-            os_log_printf(0, "curl", "curl_easy_init");
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
             break;
         }
 
@@ -294,7 +295,7 @@ int curl_delete_basic(const std::string&                                  url,
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bodies.c_str());
             if (en_debug)
             {
-                os_log_printf(0, "curl", "(len=%d) %s", bodies.length(), bodies.c_str());
+                os_log_printf(OS_LOG_DEBUG, "curl", "(len=%d) %s", bodies.length(), bodies.c_str());
             }
         }
 
@@ -311,7 +312,7 @@ int curl_delete_basic(const std::string&                                  url,
         /* Check for errors */
         if (res != CURLE_OK)
         {
-            os_log_printf(0, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
             break;
         }
 
@@ -408,7 +409,7 @@ int curl_get_basic(std::string                                         url,
         /* get a curl handle */
         if (!curl)
         {
-            os_log_printf(0, "curl", "curl_easy_init");
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
             break;
         }
 
@@ -436,7 +437,7 @@ int curl_get_basic(std::string                                         url,
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bodies.c_str());
             if (en_debug)
             {
-                os_log_printf(0, "curl", "(len=%d) %s", bodies.length(), bodies.c_str());
+                os_log_printf(OS_LOG_DEBUG, "curl", "(len=%d) %s", bodies.length(), bodies.c_str());
             }
         }
 
@@ -450,7 +451,7 @@ int curl_get_basic(std::string                                         url,
         /* Check for errors */
         if (res != CURLE_OK)
         {
-            os_log_printf(0, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
             break;
         }
 
@@ -511,7 +512,7 @@ int curl_post_basic(const std::string&                                  url,
         /* get a curl handle */
         if (!curl)
         {
-            os_log_printf(0, "curl", "curl_easy_init");
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
             break;
         }
 
@@ -540,7 +541,7 @@ int curl_post_basic(const std::string&                                  url,
             curl_easy_setopt(curl, CURLOPT_POSTFIELDS, bodies.c_str());
             if (en_debug)
             {
-                os_log_printf(0, "curl", "(len=%d) %s", bodies.length(), bodies.c_str());
+                os_log_printf(OS_LOG_DEBUG, "curl", "(len=%d) %s", bodies.length(), bodies.c_str());
             }
         }
 
@@ -554,7 +555,7 @@ int curl_post_basic(const std::string&                                  url,
         /* Check for errors */
         if (res != CURLE_OK)
         {
-            os_log_printf(0, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
+            os_log_printf(OS_LOG_ERR, "curl", "curl_easy_perform() failed: %d,%s", res, curl_easy_strerror(res));
             break;
         }
 

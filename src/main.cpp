@@ -31,9 +31,11 @@ int main(int argc, char *argv[])
     int en_debug        = 1;
     //
     memset(buffer.data(), 0, buffer.size());
+    //
     auto ret = curl_get_basic(url, header, query, buffer, timeout_conn_ms, timeout_ms, en_debug);
     //
-    OS_PRINT("data:\n%s", (char *)buffer.data());
+    OS_PRINT("data(len=%zu):\n%s", strlen((char *)buffer.data()), (char *)buffer.data());
 
+    OS_PRINT("NIGHT NIGHT!!!");
     return 0;
 }
