@@ -79,6 +79,27 @@ static inline const char *os_log_prio_label(int prio)
     os_log_printf(OS_LOG_DEBUG, OS_LOG_TAG, "[%s,%llu] " msg, os_logts_str((char *)__builtin_alloca(64), 64), os_logts_ms(), ##__VA_ARGS__)
 
 
+#define OS_LOGV(msg, ...) \
+    os_log_printf(OS_LOG_TRACE, OS_LOG_TAG, "[%s,%llu] " msg, os_logts_str((char *)__builtin_alloca(64), 64), os_logts_ms(), ##__VA_ARGS__)
+
+
+#define OS_LOGD(msg, ...) \
+    os_log_printf(OS_LOG_DEBUG, OS_LOG_TAG, "[%s,%llu] " msg, os_logts_str((char *)__builtin_alloca(64), 64), os_logts_ms(), ##__VA_ARGS__)
+
+
+#define OS_LOGI(msg, ...) \
+    os_log_printf(OS_LOG_INFO, OS_LOG_TAG, "[%s,%llu] " msg, os_logts_str((char *)__builtin_alloca(64), 64), os_logts_ms(), ##__VA_ARGS__)
+
+
+#define OS_LOGW(msg, ...) \
+    os_log_printf(OS_LOG_WARNING, OS_LOG_TAG, "[%s,%llu] " msg, os_logts_str((char *)__builtin_alloca(64), 64), os_logts_ms(), ##__VA_ARGS__)
+
+
+#define OS_LOGE(msg, ...) \
+    os_log_printf(OS_LOG_ERROR, OS_LOG_TAG, "[%s,%llu] " msg, os_logts_str((char *)__builtin_alloca(64), 64), os_logts_ms(), ##__VA_ARGS__)
+
+
+
 int os_setup_backtrace();
 
 #ifdef __cplusplus
