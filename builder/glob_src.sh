@@ -124,6 +124,7 @@ function glob_list_to_mk() {
 STRIP_PATH = ${STRIP_PATH}
 
 INCLUDES += -I${SRC_RELATIVE_PATH}
+INCLUDES += -I${SRC_RELATIVE_PATH}/thirdparty
 
 C_SRCS = ${C_SRCS[@]}
 CXX_SRCS = ${CXX_SRCS[@]}
