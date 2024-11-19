@@ -17,9 +17,15 @@ int main(int argc, char *argv[])
         "\tThis app built at %s",
         argv[0],
         COMPILE_TIME_STR(app));
+
+    if (is_sudo(1))
+    {
+        OS_PRINT("Run as sudoer!!!");
+    }
     //
-    run_test("buffer_manager");
+    // run_test("buffer_manager");
     // run_test("curl_wrapper_get_baidu");
+    run_test("os_tools_net");
 
     return 0;
 }
