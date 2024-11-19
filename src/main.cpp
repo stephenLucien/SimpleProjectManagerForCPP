@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <cstring>
 #include <iostream>
 
@@ -6,7 +7,7 @@
 #include "utils/curl_wrapper.hpp"
 #include "utils/os_tools.h"
 
-#include "test/test.h"
+#include "manager/test_manager.h"
 
 int main(int argc, char *argv[])
 {
@@ -25,7 +26,9 @@ int main(int argc, char *argv[])
     //
     // run_test("buffer_manager");
     // run_test("curl_wrapper_get_baidu");
-    run_test("os_tools_net");
+    // run_test("os_tools_net");
+    run_test("netstatus_manager");
+    usleep(1000 * 1000 * 10);
 
     return 0;
 }

@@ -1,5 +1,5 @@
-#ifndef __TEST_H__
-#define __TEST_H__
+#ifndef __TEST_MANAGER_H__
+#define __TEST_MANAGER_H__
 
 
 #ifdef __cplusplus
@@ -27,4 +27,5 @@ int run_test(const char* tag);
 }
 #endif
 
-#endif  // __TEST_H__
+
+#endif  // __TEST_MANAGER_H__

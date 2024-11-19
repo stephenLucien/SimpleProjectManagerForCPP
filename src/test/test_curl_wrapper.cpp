@@ -4,7 +4,7 @@
 #include "utils/os_tools.h"
 
 //
-#include "test.h"
+#include "manager/test_manager.h"
 
 int test_curl_wrapper(void* userdata)
 {

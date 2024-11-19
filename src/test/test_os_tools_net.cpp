@@ -1,10 +1,10 @@
-#include "test.h"
-
-//
 #include "utils/os_tools.h"
 #include "utils/os_tools_net.h"
 
 //
+#include "manager/test_manager.h"
+
+
 int test_os_tools_net(void* userdata)
 {
     int ret = -1;
@@ -40,6 +40,15 @@ int test_os_tools_net(void* userdata)
         auto r2 = os_net_tcp_ping6(ip6, 80, 2, 2, NULL);
         OS_LOGI("tcp6: %d", r2);
     }
+
+    {
+        auto r1 = os_net_check_wan4();
+        OS_LOGI("wan4: %d", r1);
+
+        auto r2 = os_net_check_wan6();
+        OS_LOGI("wan6: %d", r2);
+    }
+
 
     ret = 0;
 

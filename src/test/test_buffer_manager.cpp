@@ -1,10 +1,10 @@
 #include <unistd.h>
 #include <cstdint>
 #include <cstdio>
-#include "utils/buffer_manager.hpp"
 
 //
-#include "test.h"
+#include "manager/buffer_manager.hpp"
+#include "manager/test_manager.h"
 #include "utils/os_tools.h"
 
 #define ITEM_DATA_LEN  (1020)
