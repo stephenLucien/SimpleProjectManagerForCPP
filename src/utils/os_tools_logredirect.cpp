@@ -10,8 +10,7 @@ int os_log_write_impl(int prio, const char *tag, const char *text, size_t text_l
 
 static __ssize_t cookie_read(void *__cookie, char *__buf, size_t __nbytes)
 {
-    // return -1;
-    return 0;
+    return -1;
 }
 
 static __ssize_t cookie_write(void *__cookie, const char *__buf, size_t __nbytes)
@@ -29,8 +28,7 @@ static __ssize_t cookie_write(void *__cookie, const char *__buf, size_t __nbytes
 
 static int cookie_seek(void *__cookie, __off64_t *__pos, int __w)
 {
-    // return -1;
-    return 0;
+    return -1;
 }
 
 static int cookie_close(void *__cookie)

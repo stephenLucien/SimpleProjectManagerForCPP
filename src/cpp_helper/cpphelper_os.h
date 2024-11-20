@@ -14,15 +14,15 @@
 //
 #include "utils/os_tools.h"
 
-#define CPP_MALLOC(type, name, cnt)                                                                       \
-    std::unique_ptr<type, void (*)(type*)> name##_cpp_ptr(static_cast<type*>(malloc(sizeof(type) * cnt)), \
-                                                          [](type* ptr)                                   \
-                                                          {                                               \
-                                                              if (ptr)                                    \
-                                                              {                                           \
-                                                                  free(ptr);                              \
-                                                              }                                           \
-                                                          });                                             \
+#define CPP_MALLOC(type, name, cnt)                                                                         \
+    std::unique_ptr<type, void (*)(type*)> name##_cpp_ptr(static_cast<type*>(malloc(sizeof(type) * (cnt))), \
+                                                          [](type* ptr)                                     \
+                                                          {                                                 \
+                                                              if (ptr)                                      \
+                                                              {                                             \
+                                                                  free(ptr);                                \
+                                                              }                                             \
+                                                          });                                               \
     type*                                  name = name##_cpp_ptr.get()
 
 
