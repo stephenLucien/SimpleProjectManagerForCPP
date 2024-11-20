@@ -171,6 +171,14 @@ TARGET = ${TARGET_NAME}
 all: dump_compile_info \${TARGET}
 
 -include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${DEFS_MK})
+
+# \$(call rm_duplicate,CFLAGS)
+# \$(call rm_duplicate,CXXFLAGS)
+# \$(call rm_duplicate,INCLUDES)
+# \$(call rm_duplicate,CPPFLAGS)
+# \$(call rm_duplicate,LDFLAGS)
+# \$(call rm_duplicate,LIBS)
+
 include $(basename ${SRC_MK})
 
 \${TARGET}: \${OBJS}
