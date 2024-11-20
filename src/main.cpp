@@ -27,8 +27,10 @@ int main(int argc, char *argv[])
     // run_test("buffer_manager");
     // run_test("curl_wrapper_get_baidu");
     // run_test("os_tools_net");
-    run_test("netstatus_manager");
-    usleep(1000 * 1000 * 10);
+    // run_test("netstatus_manager");
+    run_test("unordered_multimap");
+    run_test("ordered_multimap");
+    // usleep(1000 * 1000 * 10);
 
     return 0;
 }

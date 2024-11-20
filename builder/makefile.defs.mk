@@ -14,6 +14,7 @@ LIBS += -lasan
 # pkgconf --list-all | awk '{print $1}' | grep opencv
 # $(call pkgconf_add, opencv4)
 # $(call pkgconf_add, protobuf)
+# $(call pkgconf_add, glew)
 
 # add libcurl
 $(call pkgconf_add, libcurl)
