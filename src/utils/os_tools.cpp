@@ -293,9 +293,13 @@ int os_setup_exit()
     {
         ret = -1;
     }
+#if 0
+    // Will always fail, SIGKILL is intended to force kill your process
     if (setup_exit_signal_hdl(SIGKILL))
     {
+        // You can never handle SIGKILL anyway...
         ret = -1;
     }
+#endif
     return ret;
 }

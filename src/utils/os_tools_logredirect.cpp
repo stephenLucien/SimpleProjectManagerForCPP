@@ -183,6 +183,8 @@ int os_log_write_impl(int prio, const char *tag, const char *text, size_t text_l
 
 __attribute__((constructor)) static void setup_log_redirect()
 {
+    m_orig_stdout = stdout;
+    m_orig_stderr = stderr;
     /**
      * @note: write logs to file
      *
@@ -206,13 +208,13 @@ __attribute__((destructor)) static void unset_log_redirect()
     restore_stdout();
     restore_stderr();
 
-    //
-    fprintf(stderr, "\n\r");
-    fprintf(stdout, "Stop logging to %s......\n", logfile);
     {
         PthreadMutex::Writelock lock(logMtx);
         if (m_log_fd)
         {
+            //
+            fprintf(stderr, "\n\r");
+            fprintf(stdout, "Stop logging to %s......\n", logfile);
             fclose(m_log_fd);
             m_log_fd = NULL;
         }
@@ -227,6 +229,10 @@ int flush_oslog(int reason, void *userdata)
     if (m_log_fd)
     {
         fflush(m_log_fd);
+    }
+    if (reason == SIGKILL || reason == SIGINT)
+    {
+        // unset_log_redirect();
     }
     return 0;
 }
