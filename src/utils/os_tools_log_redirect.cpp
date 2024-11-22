@@ -1,15 +1,124 @@
-#include "os_tools.h"
-#include "utils/pthread_mutex.hpp"
+#include "os_tools_log.h"
+
+//
+#include "pthread_mutex.hpp"
 
 //
 #include <stdio.h>
 #include <string.h>
 #include <cstddef>
-//
-int os_log_write_impl(int prio, const char *tag, const char *text, size_t text_len);
+
 //
 static FILE *m_orig_stdout = NULL;
 static FILE *m_orig_stderr = NULL;
+
+//
+static PthreadMutex m_log_fd_mtx;
+//
+static char logfile[256] = "program.log";
+//
+static FILE *m_log_fd = NULL;
+//
+const char *os_log_setup_log_file(const char *path)
+{
+    PthreadMutex::Writelock lock(m_log_fd_mtx);
+    if (!path)
+    {
+        return path;
+    }
+    snprintf(logfile, sizeof(logfile), "%s", path);
+    return logfile;
+}
+
+
+void os_tools_close_log_file()
+{
+    PthreadMutex::Writelock lock(m_log_fd_mtx);
+    if (m_log_fd)
+    {
+        //
+        fprintf(stderr, "\n\r");
+        fprintf(stdout, "Stop logging to %s......\n", logfile);
+        fclose(m_log_fd);
+        m_log_fd = NULL;
+    }
+}
+
+int os_tools_open_log_file()
+{
+    //
+    PthreadMutex::Writelock lock(m_log_fd_mtx);
+    if (m_log_fd)
+    {
+        return 0;
+    }
+    /**
+     * @note: write logs to file
+     *
+     */
+    m_log_fd = fopen(logfile, "w");
+    if (!m_log_fd)
+    {
+        fprintf(stderr, "failed to open logfile for write:%s \n\r", logfile);
+        return -1;
+    }
+    //
+    fprintf(stderr, "\n\r");
+    fprintf(stdout, "Start logging to %s......\n", logfile);
+
+    return 0;
+}
+
+int os_tools_reopen_log_file()
+{
+    os_tools_close_log_file();
+    return os_tools_open_log_file();
+}
+
+void os_tools_flush_log_file()
+{
+    PthreadMutex::Writelock lock(m_log_fd_mtx);
+    if (m_log_fd)
+    {
+        fflush(m_log_fd);
+    }
+}
+
+//
+int os_log_write_impl(int prio, const char *tag, const char *text, size_t text_len)
+{
+    //
+    PthreadMutex::Writelock lock(m_log_fd_mtx);
+    //
+    int ret = -1;
+    //
+    FILE *fd = m_orig_stdout;
+    //
+    if (m_log_fd)
+    {
+        fd = m_log_fd;
+    }
+    if (!fd)
+    {
+        return ret;
+    }
+    //
+    auto wc1 = fprintf(fd, "%s/%s\t", os_log_prio_label(prio), tag);
+    //
+    auto wc2 = fwrite(text, 1, text_len, fd);
+    //
+    auto wc3 = fprintf(fd, "\n");
+
+    if (wc1 < 0 || wc2 < 0 || wc3 < 0)
+    {
+        ret = -1;
+    } else
+    {
+        ret = wc1 + wc2 + wc3;
+    }
+    return ret;
+}
+
 
 static __ssize_t cookie_read(void *__cookie, char *__buf, size_t __nbytes)
 {
@@ -116,88 +225,15 @@ void restore_stderr()
     }
 }
 
-#if 0
-    #include <syslog.h>
-
-int os_log_write_impl(int prio, const char *tag, const char *text, size_t text_len)
-{
-    openlog(tag, LOG_PID, LOG_USER);
-    syslog(LOG_DEBUG, "%s", text);
-    closelog();
-    return 0;
-}
-
-__attribute__((constructor)) static void set_syslog()
-{
-    stdout2log();
-    stderr2log();
-    // openlog("Logs", LOG_PID, LOG_USER);
-    // syslog(LOG_INFO, "Start logging ......");
-}
-
-__attribute__((destructor)) static void unset_syslog()
-{
-    // closelog();
-}
-#else
-//
-static const char *logfile = "program.log";
-//
-static FILE *m_log_fd = NULL;
-//
-static PthreadMutex logMtx;
-//
-int os_log_write_impl(int prio, const char *tag, const char *text, size_t text_len)
-{
-    //
-    PthreadMutex::Writelock lock(logMtx);
-    //
-    int ret = -1;
-    //
-    FILE *fd = m_orig_stdout;
-    //
-    if (m_log_fd)
-    {
-        fd = m_log_fd;
-    }
-    if (!fd)
-    {
-        return ret;
-    }
-    //
-    auto wc1 = fprintf(fd, "%s/%s\t", os_log_prio_label(prio), tag);
-    //
-    auto wc2 = fwrite(text, 1, text_len, fd);
-    //
-    auto wc3 = fprintf(fd, "\n");
-
-    if (wc1 < 0 || wc2 < 0 || wc3 < 0)
-    {
-        ret = -1;
-    } else
-    {
-        ret = wc1 + wc2 + wc3;
-    }
-    return ret;
-}
 
 __attribute__((constructor)) static void setup_log_redirect()
 {
     m_orig_stdout = stdout;
     m_orig_stderr = stderr;
-    /**
-     * @note: write logs to file
-     *
-     */
-    m_log_fd = fopen(logfile, "w");
-    if (!m_log_fd)
-    {
-        fprintf(stderr, "failed to open logfile for write:%s \n\r", logfile);
-        return;
-    }
+
     //
-    fprintf(stderr, "\n\r");
-    fprintf(stdout, "Start logging to %s......\n", logfile);
+    os_tools_open_log_file();
+
     //
     stdout2log();
     stderr2log();
@@ -207,29 +243,18 @@ __attribute__((destructor)) static void unset_log_redirect()
 {
     restore_stdout();
     restore_stderr();
-
-    {
-        PthreadMutex::Writelock lock(logMtx);
-        if (m_log_fd)
-        {
-            //
-            fprintf(stderr, "\n\r");
-            fprintf(stdout, "Stop logging to %s......\n", logfile);
-            fclose(m_log_fd);
-            m_log_fd = NULL;
-        }
-    }
+    //
+    os_tools_close_log_file();
 }
 
-    #if 1
-        #include <signal.h>
-        #include "manager/cleanup_manager.h"
+#if 1
+    #include <signal.h>
+    #include "manager/cleanup_manager.h"
 int flush_oslog(int reason, void *userdata)
 {
-    if (m_log_fd)
-    {
-        fflush(m_log_fd);
-    }
+    //
+    os_tools_flush_log_file();
+    //
     if (reason == SIGKILL || reason == SIGINT)
     {
         // unset_log_redirect();
@@ -238,6 +263,4 @@ int flush_oslog(int reason, void *userdata)
 }
 
 REG_CLEANUP_FUNC(FlushLog, flush_oslog, NULL)
-    #endif
-
 #endif

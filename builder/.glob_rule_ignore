@@ -8,4 +8,4 @@ find ../src -name '*.cC'
 find ../src -name '*.Cc'
 find ../src -name '*.CC'
 # uncomment the following line to disable log redirection to file
-# echo "../src/utils/os_tools_logredirect.cpp"
+# echo "../src/utils/os_tools_log_redirect.cpp"

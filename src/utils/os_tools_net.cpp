@@ -1,5 +1,9 @@
 #include "os_tools_net.h"
 
+//
+#include "os_tools_log.h"
+#include "os_tools_net_socket.hpp"
+#include "os_tools_system.h"
 
 //
 #include <arpa/inet.h>
@@ -22,11 +26,7 @@
 #include <unistd.h>
 #include <cstdint>
 #include <list>
-#include <vector>
 
-
-//
-#include "os_tools.h"
 
 
 int os_net_get_local_ipv4_addr(const char *iface, struct in_addr &ip4)
@@ -502,11 +502,13 @@ int os_net_icmp_ping6(struct in6_addr ip6, int send_timeout_sec, int recv_timeou
 
 int os_net_ping4_ok(struct in_addr addr, uint16_t port, int send_timeout_sec, int recv_timeout_sec, const char *iface)
 {
+#if 0
     // try icmp ping first
     if (is_sudo(0) && os_net_icmp_ping4(addr, send_timeout_sec, recv_timeout_sec, iface) == 0)
     {
         return 1;
     }
+#endif
     // icmp packet may be blocked by firewall, try to use tcp connection
     if (os_net_tcp_ping4(addr, port, send_timeout_sec, recv_timeout_sec, iface) == 0)
     {
@@ -518,11 +520,13 @@ int os_net_ping4_ok(struct in_addr addr, uint16_t port, int send_timeout_sec, in
 
 int os_net_ping6_ok(struct in6_addr addr, uint16_t port, int send_timeout_sec, int recv_timeout_sec, const char *iface)
 {
+#if 0
     // try icmp ping first
     if (is_sudo(0) && os_net_icmp_ping6(addr, send_timeout_sec, recv_timeout_sec, iface) == 0)
     {
         return 1;
     }
+#endif
     // icmp packet may be blocked by firewall, try to use tcp connection
     if (os_net_tcp_ping6(addr, port, send_timeout_sec, recv_timeout_sec, iface) == 0)
     {
