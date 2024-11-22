@@ -221,7 +221,7 @@ int os_net_tcp_ping6(struct in6_addr ipv6_addr, uint16_t port, int send_timeout_
 {
     int ret = -1;
     //
-    CppSocket sock(PF_INET, SOCK_STREAM, IPPROTO_IP);
+    CppSocket sock(PF_INET6, SOCK_STREAM, IPPROTO_IP);
     if (!sock.isValid())
     {
         return ret;
@@ -380,7 +380,7 @@ int os_net_icmp_ping4(struct in_addr ip4, int send_timeout_sec, int recv_timeout
     return ret;
 }
 
-
+// FIXME: not work
 int os_net_icmp_ping6(struct in6_addr ip6, int send_timeout_sec, int recv_timeout_sec, const char *iface)
 {
     int ret = -1;

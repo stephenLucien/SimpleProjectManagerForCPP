@@ -7,13 +7,13 @@ extern "C" {
 #endif
 
 
-typedef int (*TestFunc)(void* userdata);
+typedef int (*TestFunc)(int reason, void* userdata);
 
 int reg_test(const char* tag, TestFunc func, void* data);
 
 int unreg_test(const char* tag);
 
-int run_test(const char* tag);
+int run_test(const char* tag, int reason = 0);
 
 
 #define REG_TEST_FUNC(tag, func, data)                             \

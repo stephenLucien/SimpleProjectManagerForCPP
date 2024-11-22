@@ -22,7 +22,7 @@ static void my_umm_insert(std::unordered_multimap<int, int>& umm, int key, int v
     umm.emplace(key, value);
 }
 
-int test_unordered_multimap(void* userdata)
+int test_unordered_multimap(int reason, void* userdata)
 {
     std::unordered_multimap<int, int> umm;  // Initial elements
 

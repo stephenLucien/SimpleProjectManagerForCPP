@@ -135,6 +135,8 @@ static inline const char *os_log_prio_label(int prio)
 
 int os_setup_backtrace();
 
+int os_setup_exit();
+
 int is_sudo(int dump);
 
 #ifdef __cplusplus

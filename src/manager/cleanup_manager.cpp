@@ -1,4 +1,6 @@
-#include "test_manager.h"
+#include "cleanup_manager.h"
+
+
 
 //
 #include <string>
@@ -8,19 +10,19 @@
 
 namespace
 {
-class TestInstance
+class CleanupInstance
 {
    private:
     //
-    TestFunc func;
+    CleanupFunc func;
     //
     void* data;
 
    public:
-    TestInstance(TestFunc func = NULL, void* data = NULL) : func(func), data(data)
+    CleanupInstance(CleanupFunc func = NULL, void* data = NULL) : func(func), data(data)
     {
     }
-    int run(int reason = 0)
+    int run(int reason)
     {
         int ret = -1;
         //
@@ -34,32 +36,32 @@ class TestInstance
         ret = func(reason, data);
         //
         auto end_ts = os_get_timestamp_ms();
-        OS_LOGD("test %p: ret=%d, timelapse_ms=%llu", func, ret, end_ts - begin_ts);
+        OS_LOGD("cleanup %p: ret=%d, timelapse_ms=%llu", func, ret, end_ts - begin_ts);
         return ret;
     }
 };
 
-class TestManager
+class CleanupManager
 {
    private:
-    TestManager()
+    CleanupManager()
     {
     }
-    ~TestManager()
+    ~CleanupManager()
     {
     }
     PthreadMutex m_mtx;
     //
-    std::unordered_map<std::string, TestInstance> m_tests;
+    std::unordered_map<std::string, CleanupInstance> m_cleans;
 
    public:
-    static TestManager* getInstance()
+    static CleanupManager* getInstance()
     {
-        static TestManager obj;
+        static CleanupManager obj;
         return &obj;
     }
 
-    int reg(const char* tag, TestFunc func, void* data)
+    int reg(const char* tag, CleanupFunc func, void* data)
     {
         if (!tag || !func)
         {
@@ -67,7 +69,7 @@ class TestManager
         }
         PthreadMutex::Writelock _l(m_mtx);
         //
-        m_tests[std::string(tag)] = TestInstance(func, data);
+        m_cleans[std::string(tag)] = CleanupInstance(func, data);
         return 0;
     }
 
@@ -79,24 +81,24 @@ class TestManager
         }
         PthreadMutex::Writelock _l(m_mtx);
         //
-        auto itr = m_tests.find(tag);
-        if (itr == m_tests.end())
+        auto itr = m_cleans.find(tag);
+        if (itr == m_cleans.end())
         {
             return 0;
         }
-        m_tests.erase(itr);
+        m_cleans.erase(itr);
         return 1;
     }
 
-    int run(const char* tag, int reason = 0)
+    int run(const char* tag, int reason)
     {
         //
         PthreadMutex::Writelock _l(m_mtx);
         //
         if (tag)
         {
-            auto itr = m_tests.find(tag);
-            if (itr == m_tests.end())
+            auto itr = m_cleans.find(tag);
+            if (itr == m_cleans.end())
             {
                 return -1;
             } else
@@ -105,7 +107,7 @@ class TestManager
             }
         } else
         {
-            for (auto& obj : m_tests)
+            for (auto& obj : m_cleans)
             {
                 obj.second.run(reason);
             }
@@ -117,17 +119,22 @@ class TestManager
 }  // namespace
 
 
-int reg_test(const char* tag, TestFunc func, void* data)
+int reg_cleanup(const char* tag, CleanupFunc func, void* data)
 {
-    return TestManager::getInstance()->reg(tag, func, data);
+    return CleanupManager::getInstance()->reg(tag, func, data);
 }
 
-int unreg_test(const char* tag)
+int unreg_cleanup(const char* tag)
 {
-    return TestManager::getInstance()->unreg(tag);
+    return CleanupManager::getInstance()->unreg(tag);
 }
 
-int run_test(const char* tag, int reason)
+int run_cleanup(const char* tag, int reason)
 {
-    return TestManager::getInstance()->run(tag, reason);
+    return CleanupManager::getInstance()->run(tag, reason);
+}
+
+void cleanup_on_exit_impl(int sig_num)
+{
+    run_cleanup(NULL, sig_num);
 }

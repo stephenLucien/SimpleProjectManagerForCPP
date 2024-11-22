@@ -62,7 +62,7 @@ static void MyDataItem_handler(void *userdata, BufferManager::BufferItem buffer)
 
 static BufferManager m_buffer(sizeof(uint32_t) + ITEM_DATA_LEN, 32, MyDataItem_handler, NULL, CB_DURATION_MS);
 
-int test_buffer_manager(void *userdata)
+int test_buffer_manager(int reason, void *userdata)
 {
     std::string test_string = "hello";
     //

@@ -6,7 +6,7 @@
 //
 #include "manager/test_manager.h"
 
-int test_curl_wrapper(void* userdata)
+int test_curl_wrapper(int reason, void* userdata)
 {
     const char* in = (const char*)userdata;
     //

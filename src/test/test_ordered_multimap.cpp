@@ -22,7 +22,7 @@ static void my_omm_insert(std::multimap<int, int>& umm, int key, int value)
     umm.emplace(key, value);
 }
 
-int test_ordered_multimap(void* userdata)
+int test_ordered_multimap(int reason, void* userdata)
 {
     std::multimap<int, int> umm;  // Initial elements
 

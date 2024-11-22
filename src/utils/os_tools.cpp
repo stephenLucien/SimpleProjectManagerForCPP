@@ -197,7 +197,7 @@ static void dump_backtrace(int sig_num, siginfo_t *info, void *ucontext)
         int status;
         //
         char *realname = abi::__cxa_demangle(messages[i], NULL, NULL, &status);
-        OS_PRINT("[bt]: (%d) %s", i, realname ? realname : messages[i] ? messages[i] : "nil");
+        OS_LOGE("[bt]: (%d) %s", i, realname ? realname : messages[i] ? messages[i] : "nil");
         free(realname);
     }
 
@@ -206,7 +206,7 @@ static void dump_backtrace(int sig_num, siginfo_t *info, void *ucontext)
     exit(EXIT_FAILURE);
 }
 
-static inline int setup_signal_hdl(int sig_num)
+static inline int setup_backtrace_signal_hdl(int sig_num)
 {
     int ret = 0;
     //
@@ -229,23 +229,71 @@ int os_setup_backtrace()
 {
     int ret = 0;
 
-    if (setup_signal_hdl(SIGSEGV))
+    if (setup_backtrace_signal_hdl(SIGSEGV))
     {
         ret = -1;
     }
-    if (setup_signal_hdl(SIGBUS))
+    if (setup_backtrace_signal_hdl(SIGBUS))
     {
         ret = -1;
     }
-    if (setup_signal_hdl(SIGFPE))
+    if (setup_backtrace_signal_hdl(SIGFPE))
     {
         ret = -1;
     }
-    if (setup_signal_hdl(SIGABRT))
+    if (setup_backtrace_signal_hdl(SIGABRT))
     {
         ret = -1;
     }
-    if (setup_signal_hdl(SIGILL))
+    if (setup_backtrace_signal_hdl(SIGILL))
+    {
+        ret = -1;
+    }
+    return ret;
+}
+
+void __attribute__((weak)) cleanup_on_exit_impl(int sig_num)
+{
+}
+
+static void cleanup_on_exit(int sig_num, siginfo_t *info, void *ucontext)
+{
+    //
+    OS_LOGI("signum: %d (%s)", sig_num, strsignal(sig_num));
+    //
+    cleanup_on_exit_impl(sig_num);
+
+    exit(EXIT_SUCCESS);
+}
+
+static inline int setup_exit_signal_hdl(int sig_num)
+{
+    int ret = 0;
+    //
+    struct sigaction sigact;
+
+    sigact.sa_sigaction = cleanup_on_exit;
+    //
+    sigact.sa_flags = SA_RESETHAND;
+
+    if (sigaction(sig_num, &sigact, (struct sigaction *)NULL) != 0)
+    {
+        OS_PRINT("error setting signal handler for %d (%s)\n", sig_num, strsignal(sig_num));
+
+        ret = -1;
+    }
+    return ret;
+}
+
+int os_setup_exit()
+{
+    int ret = 0;
+
+    if (setup_exit_signal_hdl(SIGINT))
+    {
+        ret = -1;
+    }
+    if (setup_exit_signal_hdl(SIGKILL))
     {
         ret = -1;
     }

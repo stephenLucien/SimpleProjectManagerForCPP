@@ -5,7 +5,7 @@
 #include "manager/test_manager.h"
 
 
-int test_os_tools_net(void* userdata)
+int test_os_tools_net(int reason, void* userdata)
 {
     int ret = -1;
     //
