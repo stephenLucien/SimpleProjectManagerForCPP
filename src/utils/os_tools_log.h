@@ -119,6 +119,10 @@ int os_log_printf(int prio, const char *tag, const char *fmt, ...);
                   ##__VA_ARGS__)
 
 
+const char *os_log_hexdump2buf(char *buf, size_t bufsz, void *data, int datalen, int print_addr, int bytes_per_pack, int packs_per_line);
+
+#define OS_LOG_HEXDUMP(data, len) os_log_hexdump2buf((char *)__builtin_alloca(4096), 4096, data, len, 1, 4, 4)
+
 #ifdef __cplusplus
 }
 #endif

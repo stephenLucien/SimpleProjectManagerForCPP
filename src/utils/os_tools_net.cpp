@@ -13,8 +13,10 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <netdb.h>
+#include <netinet/icmp6.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/tcp.h>
 #include <stdio.h>
@@ -241,7 +243,13 @@ int os_net_tcp_ping6(struct in6_addr ipv6_addr, uint16_t port, int send_timeout_
     return ret;
 }
 
-
+/**
+ * @brief \ref https://en.wikipedia.org/wiki/Internet_checksum
+ *
+ * @param buf
+ * @param bufsz
+ * @return uint16_t
+ */
 static inline uint16_t icmp_checksum(uint16_t *buf, int bufsz)
 {
     unsigned long sum = 0xffff;
@@ -265,12 +273,15 @@ int os_net_icmp_ping4(struct in_addr ip4, int send_timeout_sec, int recv_timeout
 {
     int ret = -1;
     //
-    int dump = 0;
+    int dump = 1;
     //
     CppSocket sock(PF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (!sock.isValid())
     {
-        OS_LOGE("icmp socket, %s", strerror(errno));
+        if (dump)
+        {
+            OS_LOGE("icmp socket, %s", strerror(errno));
+        }
         return ret;
     }
     //
@@ -280,6 +291,10 @@ int os_net_icmp_ping4(struct in_addr ip4, int send_timeout_sec, int recv_timeout
     sock.set_recv_timeout(recv_timeout_sec);
     if (iface && sock.bind_to_device(iface) == -1)
     {
+        if (dump)
+        {
+            OS_LOGE("bind_to_device, %s", strerror(errno));
+        }
         return ret;
     }
     //
@@ -288,7 +303,10 @@ int os_net_icmp_ping4(struct in_addr ip4, int send_timeout_sec, int recv_timeout
     addr.sin_family = PF_INET;  // IPv4
     addr.sin_addr   = ip4;
 
-    //
+    /**
+     * @brief \ref https://en.wikipedia.org/wiki/Internet_Control_Message_Protocol
+     *
+     */
     struct icmphdr hdr;
     memset(&hdr, 0, sizeof(hdr));
     hdr.type             = ICMP_ECHO;
@@ -301,24 +319,57 @@ int os_net_icmp_ping4(struct in_addr ip4, int send_timeout_sec, int recv_timeout
     ret = sendto(sock.get(), (char *)&hdr, sizeof(hdr), 0, (struct sockaddr *)&addr, sizeof(addr));
     if (ret == -1)
     {
+        if (dump)
+        {
+            OS_LOGE("sendto, %s", strerror(errno));
+        }
         return ret;
     }
     uint8_t buf[1024];
+    memset(buf, 0, sizeof(buf));
     ret = sock.read_data(buf, sizeof(buf));
     if (ret == -1)
     {
+        if (dump)
+        {
+            OS_LOGE("read_data, %s", strerror(errno));
+        }
         return ret;
     }
-    //
-    auto iphdrptr = (struct iphdr *)buf;
-    //
-    auto icmphdrptr = (struct icmphdr *)(buf + (iphdrptr->ihl) * 4);
+#if 1
+    if (dump)
+    {
+        OS_LOGV("buf:%s", OS_LOG_HEXDUMP(buf, ret));
+    }
+#endif
 
     ret = -1;
     //
+    auto iphdrptr = (struct iphdr *)buf;
+
+    /**
+     * @brief
+     * \ref https://en.wikipedia.org/wiki/List_of_IP_protocol_numbers
+     *
+     */
+    if (iphdrptr->protocol != IPPROTO_ICMP)
+    {
+        if (dump)
+        {
+            OS_LOGE("protocol %02X", iphdrptr->protocol);
+        }
+        return ret;
+    }
+    /**
+     * @brief there might be 'The options' after daddr.
+     * use ihl(int 32bit word) to calculate the offset of ICMP header
+     */
+    auto icmphdrptr = (struct icmphdr *)(buf + (iphdrptr->ihl) * 4);
+
+    //
     switch (icmphdrptr->type)
     {
-        case 3:
+        case ICMP_DEST_UNREACH:
         {
             if (dump)
             {
@@ -332,7 +383,7 @@ int os_net_icmp_ping4(struct in_addr ip4, int send_timeout_sec, int recv_timeout
             }
         }
         break;
-        case 8:
+        case ICMP_ECHO:
         {
             if (dump)
             {
@@ -346,7 +397,7 @@ int os_net_icmp_ping4(struct in_addr ip4, int send_timeout_sec, int recv_timeout
             ret = 0;
         }
         break;
-        case 0:
+        case ICMP_ECHOREPLY:
         {
             if (dump)
             {
@@ -380,17 +431,19 @@ int os_net_icmp_ping4(struct in_addr ip4, int send_timeout_sec, int recv_timeout
     return ret;
 }
 
-// FIXME: not work
 int os_net_icmp_ping6(struct in6_addr ip6, int send_timeout_sec, int recv_timeout_sec, const char *iface)
 {
     int ret = -1;
     //
-    int dump = 0;
+    int dump = 1;
     //
-    CppSocket sock(PF_INET6, SOCK_RAW, IPPROTO_ICMP);
+    CppSocket sock(PF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
     if (!sock.isValid())
     {
-        OS_LOGE("icmp socket, %s", strerror(errno));
+        if (dump)
+        {
+            OS_LOGE("icmp socket, %s", strerror(errno));
+        }
         return ret;
     }
     //
@@ -400,45 +453,84 @@ int os_net_icmp_ping6(struct in6_addr ip6, int send_timeout_sec, int recv_timeou
     sock.set_recv_timeout(recv_timeout_sec);
     if (iface && sock.bind_to_device(iface) == -1)
     {
+        if (dump)
+        {
+            OS_LOGE("bind_to_device, %s", strerror(errno));
+        }
         return ret;
     }
-    //
+    /**
+     * @brief \ref https://www.rfc-editor.org/rfc/rfc3493
+     *
+     */
     struct sockaddr_in6 addr;
     memset(&addr, 0, sizeof(addr));
-    addr.sin6_family = PF_INET6;  // IPv4
+    addr.sin6_family = PF_INET6;  // IPv6
     addr.sin6_addr   = ip6;
 
-    //
-    struct icmphdr hdr;
+    /**
+     * @brief \ref https://en.wikipedia.org/wiki/ICMPv6
+     *
+     */
+    struct icmp6_hdr hdr;
     memset(&hdr, 0, sizeof(hdr));
-    hdr.type             = ICMP_ECHO;
-    hdr.code             = 0;
-    hdr.checksum         = 0;
-    hdr.un.echo.id       = 0;
-    hdr.un.echo.sequence = 0;
-    hdr.checksum         = icmp_checksum((uint16_t *)&hdr, sizeof(hdr));
+    hdr.icmp6_type  = ICMP6_ECHO_REQUEST;
+    hdr.icmp6_code  = 0;
+    hdr.icmp6_cksum = icmp_checksum((uint16_t *)&hdr, sizeof(hdr));
     //
     ret = sendto(sock.get(), (char *)&hdr, sizeof(hdr), 0, (struct sockaddr *)&addr, sizeof(addr));
     if (ret == -1)
     {
+        if (dump)
+        {
+            OS_LOGE("sendto, %s", strerror(errno));
+        }
         return ret;
     }
     uint8_t buf[1024];
+    memset(buf, 0, sizeof(buf));
     ret = sock.read_data(buf, sizeof(buf));
     if (ret == -1)
     {
+        if (dump)
+        {
+            OS_LOGE("read_data, %s", strerror(errno));
+        }
+        return ret;
+    }
+#if 1
+    if (dump)
+    {
+        OS_LOGV("buf:%s", OS_LOG_HEXDUMP(buf, ret));
+    }
+#endif
+
+    ret = -1;
+#if 1
+    auto icmphdrptr = (struct icmp6_hdr *)(buf);
+#else
+    /**
+     * @brief \ref https://www.rfc-editor.org/rfc/rfc3542#section-2.2
+     *
+     */
+    auto iphdrptr = (struct ip6_hdr *)buf;
+    if (iphdrptr->ip6_ctlun.ip6_un1.ip6_un1_nxt != IPPROTO_ICMPV6)
+    {
+        if (dump)
+        {
+            OS_LOGE("header next, %02X", iphdrptr->ip6_ctlun.ip6_un1.ip6_un1_nxt);
+        }
         return ret;
     }
     //
-    auto iphdrptr = (struct iphdr *)buf;
-    //
-    auto icmphdrptr = (struct icmphdr *)(buf + (iphdrptr->ihl) * 4);
+    auto icmphdrptr = (struct icmp6_hdr *)(buf + sizeof(struct ip6_hdr));
+#endif
 
     ret = -1;
     //
-    switch (icmphdrptr->type)
+    switch (icmphdrptr->icmp6_type)
     {
-        case 3:
+        case ICMP6_DST_UNREACH_ADDR:
         {
             if (dump)
             {
@@ -447,33 +539,33 @@ int os_net_icmp_ping6(struct in6_addr ip6, int send_timeout_sec, int recv_timeou
                     "ICMP_type=%d, ICMP_code=%d ",
                     iface ? iface : "all",
                     IPV6_ADDR2STR(&ip6),
-                    icmphdrptr->type,
-                    icmphdrptr->code);
+                    icmphdrptr->icmp6_type,
+                    icmphdrptr->icmp6_code);
             }
         }
         break;
-        case 8:
+        case ICMP6_ECHO_REQUEST:
         {
             if (dump)
             {
                 OS_LOGI("(%s)The host %s is alive, ICMP_type=%d, ICMP_code=%d ",
                         iface ? iface : "all",
                         IPV6_ADDR2STR(&ip6),
-                        icmphdrptr->type,
-                        icmphdrptr->code);
+                        icmphdrptr->icmp6_type,
+                        icmphdrptr->icmp6_code);
             }
             ret = 0;
         }
         break;
-        case 0:
+        case ICMP6_ECHO_REPLY:
         {
             if (dump)
             {
                 OS_LOGI("(%s)The host %s is alive, ICMP_type=%d, ICMP_code=%d ",
                         iface ? iface : "all",
                         IPV6_ADDR2STR(&ip6),
-                        icmphdrptr->type,
-                        icmphdrptr->code);
+                        icmphdrptr->icmp6_type,
+                        icmphdrptr->icmp6_code);
             }
             ret = 0;
         }
@@ -488,8 +580,8 @@ int os_net_icmp_ping6(struct in6_addr ip6, int send_timeout_sec, int recv_timeou
                     "ICMP_type=%d, ICMP_code=%d ",
                     iface ? iface : "all",
                     IPV6_ADDR2STR(&ip6),
-                    icmphdrptr->type,
-                    icmphdrptr->code);
+                    icmphdrptr->icmp6_type,
+                    icmphdrptr->icmp6_code);
             }
         }
         break;

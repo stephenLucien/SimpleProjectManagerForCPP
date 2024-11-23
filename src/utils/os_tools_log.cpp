@@ -8,6 +8,8 @@
 #include <string.h>
 #include <time.h>
 #include <cstdarg>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -94,4 +96,73 @@ int os_log_printf(int prio, const char *tag, const char *fmt, ...)
     ret = os_log_vprintf(prio, tag, fmt, ap);
     va_end(ap);
     return ret;
+}
+
+const char *os_log_hexdump2buf(char *buf, size_t bufsz, void *data, int datalen, int print_addr, int bytes_per_pack, int packs_per_line)
+{
+    if (!buf || bufsz <= 0)
+    {
+        return buf;
+    }
+    memset(buf, 0, bufsz);
+    if (!data || datalen <= 0)
+    {
+        return buf;
+    }
+    if (bytes_per_pack <= 0)
+    {
+        bytes_per_pack = 4;
+    }
+    if (packs_per_line <= 0)
+    {
+        packs_per_line = 4;
+    }
+    int bytes_per_line = bytes_per_pack * packs_per_line;
+    //
+    int wc = 0;
+    //
+    size_t offset = 0;
+    //
+    auto ptr = (uint8_t *)data;
+    //
+    for (int i = 0; i < datalen && offset < bufsz; ++i)
+    {
+        if (i % bytes_per_pack == 0)
+        {
+            if (i % bytes_per_line == 0)
+            {
+                wc = snprintf(buf + offset, bufsz - offset, "\n");
+                if (wc < 0)
+                {
+                    break;
+                }
+                offset += wc;
+
+                if (print_addr)
+                {
+                    wc = snprintf(buf + offset, bufsz - offset, "[%p] ", ptr + i);
+                    if (wc < 0)
+                    {
+                        break;
+                    }
+                    offset += wc;
+                }
+            } else
+            {
+                wc = snprintf(buf + offset, bufsz - offset, " ");
+                if (wc < 0)
+                {
+                    break;
+                }
+                offset += wc;
+            }
+        }
+        wc = snprintf(buf + offset, bufsz - offset, "%02X", ptr[i]);
+        if (wc < 0)
+        {
+            break;
+        }
+        offset += wc;
+    }
+    return buf;
 }

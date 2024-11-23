@@ -52,6 +52,10 @@ int os_tools_open_log_file()
     {
         return 0;
     }
+    if (strlen(logfile) <= 0)
+    {
+        return -1;
+    }
     /**
      * @note: write logs to file
      *
