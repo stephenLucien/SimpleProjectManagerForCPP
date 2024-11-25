@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     // run_test("curl_wrapper_get_baidu");
     // run_test("os_tools_net");
     // run_test("netstatus_manager");
-    // run_test("tcp_ping4");
+    run_test("tcp_ping4");
     // run_test("tcp_ping6");
     // run_test("tcp_wan6");
     // sync();
@@ -43,6 +43,8 @@ int main(int argc, char *argv[])
 
     // run_test("text_file_write");
     // run_test("text_file_read");
+
+    // run_test("ifaces_dump");
 
     return 0;
 }
