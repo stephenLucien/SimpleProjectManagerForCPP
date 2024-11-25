@@ -18,6 +18,8 @@
 #include <cstdlib>
 #include <ctime>
 
+//
+#include "cpp_helper/cpphelper_os.hpp"
 
 
 int system_wrap(char *buf, size_t bufsz, const char *msg, ...)
@@ -189,4 +191,89 @@ int os_setup_exit()
     }
 #endif
     return ret;
+}
+
+
+int write_data_to_file(const char *fn, const char *data, size_t datalen)
+{
+    int ret = -1;
+    //
+    if (!data || datalen <= 0)
+    {
+        return ret;
+    }
+    //
+    CPP_FOPEN(fd, fn, "w");
+    if (!fd)
+    {
+        OS_PRINT("open file fail: %s", fn);
+        return ret;
+    }
+    size_t wc = fwrite(data, 1, datalen, fd);
+    if (wc != datalen)
+    {
+        OS_PRINT("write len(%zu/%zu) %s", wc, datalen, fn);
+    }
+
+    return (int)wc;
+}
+
+char *read_data_from_file(const char *fn, char *buf, size_t bufsz, int *read_cnt)
+{
+    if (read_cnt)
+    {
+        *read_cnt = -1;
+    }
+    if (!buf || bufsz <= 0)
+    {
+        return buf;
+    }
+    //
+    memset(buf, 0, bufsz);
+    //
+    CPP_FOPEN(fd, fn, "r");
+    if (!fd)
+    {
+        OS_PRINT("open file fail: %s", fn);
+        return buf;
+    }
+    do
+    {
+        if (fseek(fd, 0, SEEK_END) != 0)
+        {
+            OS_PRINT("fseek end fail:%s", fn);
+            break;
+        }
+        auto sz = ftell(fd);
+        if (sz < 0)
+        {
+            OS_PRINT("ftell fail:%s", fn);
+            break;
+        }
+        if (fseek(fd, 0, SEEK_SET) != 0)
+        {
+            OS_PRINT("fseek set fail:%s", fn);
+            break;
+        }
+        if (sz >= bufsz)
+        {
+            OS_PRINT("overflow, fn:%s, max:%zu, but %ld ", fn, bufsz, sz);
+            break;
+        }
+
+        auto rc = fread(buf, 1, sz, fd);
+        if (read_cnt)
+        {
+            *read_cnt = (int)rc;
+        }
+        if (rc == sz)
+        {
+        } else
+        {
+            OS_PRINT("read incomplete (%zu, %d): %s", rc, sz, fn);
+        }
+
+    } while (0);
+
+    return buf;
 }
