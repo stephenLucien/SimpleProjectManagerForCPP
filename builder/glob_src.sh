@@ -152,7 +152,7 @@ EOF
 
 -include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${INIT_MK})
 
-COM_COMPILE_FLAGS += -Os
+# COM_COMPILE_FLAGS += -Os
 COM_COMPILE_FLAGS += -fPIC
 COM_COMPILE_FLAGS += -fdata-sections -ffunction-sections
 COM_COMPILE_FLAGS += -fno-omit-frame-pointer

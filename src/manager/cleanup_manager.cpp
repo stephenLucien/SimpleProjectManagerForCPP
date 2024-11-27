@@ -12,12 +12,6 @@ namespace
 {
 class CleanupInstance
 {
-   private:
-    //
-    CleanupFunc func;
-    //
-    void* data;
-
    public:
     CleanupInstance(CleanupFunc func = NULL, void* data = NULL) : func(func), data(data)
     {
@@ -39,6 +33,10 @@ class CleanupInstance
         OS_LOGD("cleanup %p: ret=%d, timelapse_ms=%llu", func, ret, end_ts - begin_ts);
         return ret;
     }
+    //
+    CleanupFunc func;
+    //
+    void* data;
 };
 
 class CleanupManager
@@ -100,15 +98,18 @@ class CleanupManager
             auto itr = m_cleans.find(tag);
             if (itr == m_cleans.end())
             {
+                OS_LOGD("<%s> not found: %s", __PRETTY_FUNCTION__, tag);
                 return -1;
             } else
             {
+                OS_LOGD("int '%s'(%p)(int %d, void* %p)", itr->first.c_str(), itr->second.func, reason, itr->second.data);
                 return itr->second.run(reason);
             }
         } else
         {
             for (auto& obj : m_cleans)
             {
+                OS_LOGD("int '%s'(%p)(int %d, void* %p)", obj.first.c_str(), obj.second.func, reason, obj.second.data);
                 obj.second.run(reason);
             }
         }

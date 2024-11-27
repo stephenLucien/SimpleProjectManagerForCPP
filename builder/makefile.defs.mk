@@ -1,9 +1,15 @@
 
-# address sanitizer
+# standard
 CFLAGS += -std=gnu11
-CFLAGS += -fsanitize=address
-
 CXXFLAGS += -std=gnu++14
+
+# optimize level
+CFLAGS += -O0 -g
+CXXFLAGS += -O0 -g
+
+
+# address sanitizer
+CFLAGS += -fsanitize=address
 CXXFLAGS += -fsanitize=address
 
 # LDFLAGS += -Wl,--as-needed
@@ -17,10 +23,10 @@ LIBS += -lasan
 # $(call pkgconf_add, glew)
 
 # add libcurl
-$(call pkgconf_add, libcurl)
+# $(call pkgconf_add, libcurl)
 
 # add openssl
-$(call pkgconf_add, openssl)
+# $(call pkgconf_add, openssl)
 
 # libqrencode
 # $(call pkgconf_add, libqrencode)
