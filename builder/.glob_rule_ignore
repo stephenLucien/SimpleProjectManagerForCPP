@@ -1,3 +1,4 @@
+#!/bin/bash
 find ../src -name '*.Cpp'
 find ../src -name '*.cPp'
 find ../src -name '*.cpP'
@@ -9,3 +10,17 @@ find ../src -name '*.Cc'
 find ../src -name '*.CC'
 # uncomment the following line to disable log redirection to file
 echo "../src/utils/os_tools_log_redirect.cpp"
+
+# echo ../src/manager/buffer_manager.cpp
+# echo ../src/manager/cleanup_manager.cpp
+# echo ../src/manager/test_manager.cpp
+# echo ../src/test/test_buffer_manager.cpp
+# echo ../src/test/test_curl_wrapper.cpp
+# echo ../src/test/test_netstatus_manager.cpp
+# echo ../src/test/test_ordered_multimap.cpp
+# echo ../src/test/test_os_tools_net.cpp
+# echo ../src/test/test_unordered_multimap.cpp
+# echo ../src/test/test_text_file_readwrite.cpp
+# echo ../src/test/test_ifaces.cpp
+# echo ../src/test/test_map.cpp
+# echo ../src/test/test_list.cpp

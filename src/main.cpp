@@ -1,13 +1,10 @@
+#include <stdlib.h>
 #include <unistd.h>
 #include <cstring>
-#include <iostream>
 
 #include "app/app.h"
-#include "utils/compile_time.h"
-#include "utils/curl_wrapper.hpp"
-#include "utils/os_tools.h"
-
 #include "manager/test_manager.h"
+#include "utils/os_tools.h"
 
 int main(int argc, char *argv[])
 {
