@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
     // run_test("map_itr_erase");
     // run_test("list_itr_erase");
 
-    // run_test("test_opencv2");
+    run_test("test_opencv2");
 
 
     return 0;

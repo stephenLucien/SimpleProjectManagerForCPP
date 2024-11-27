@@ -12,7 +12,7 @@ find ../src -name '*.CC'
 echo "../src/utils/os_tools_log_redirect.cpp"
 
 # depends on opencv
-echo ../src/test/test_opencv2.cpp
+# echo ../src/test/test_opencv2.cpp
 
 # depends on libcurl
 echo ../src/utils/curl_wrapper.cpp
