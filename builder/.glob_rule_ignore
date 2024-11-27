@@ -1,3 +1,4 @@
+#!/bin/bash
 find ../src -name '*.Cpp'
 find ../src -name '*.cPp'
 find ../src -name '*.cpP'
