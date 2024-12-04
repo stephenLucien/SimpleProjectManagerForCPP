@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
 
     // run_test("test_opencv2");
 
+    run_test("test_printf");
 
     return 0;
 }
