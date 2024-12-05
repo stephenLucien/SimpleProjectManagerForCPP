@@ -99,10 +99,12 @@ static inline nlohmann::json nlohmann_js_parse(const std::string& js_string, con
     } while (0)
 
 #define nlohmann_jsobj_try_get_value_debug(js, key, var) nlohmann_jsobj_try_get_value_impl(js, key, var, 1, 1)
-#define nlohmann_jsobj_try_get_value(js, key, var)       nlohmann_jsobj_try_get_value_debug(js, key, var, 1, 0)
+#define nlohmann_jsobj_try_get_value(js, key, var)       nlohmann_jsobj_try_get_value_impl(js, key, var, 1, 0)
+#define nlohmann_jsobj_try_get_keyvalue(js, keyvar)      nlohmann_jsobj_try_get_value_impl(js, #keyvar, keyvar, 1, 0)
 
-#define nlohmann_jsobj_get_value_debug(js, key, var) nlohmann_jsobj_try_get_value_debug(js, key, var, 0, 1)
-#define nlohmann_jsobj_get_value(js, key, var)       nlohmann_jsobj_try_get_value_debug(js, key, var, 0, 0)
+#define nlohmann_jsobj_get_value_debug(js, key, var) nlohmann_jsobj_try_get_value_impl(js, key, var, 0, 1)
+#define nlohmann_jsobj_get_value(js, key, var)       nlohmann_jsobj_try_get_value_impl(js, key, var, 0, 0)
+#define nlohmann_jsobj_get_keyvalue(js, keyvar)      nlohmann_jsobj_try_get_value_impl(js, #keyvar, keyvar, 0, 0)
 
 #define nlohmann_js_extract(js, key, x)              \
     try                                              \

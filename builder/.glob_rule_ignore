@@ -21,6 +21,11 @@ echo ../src/test/test_curl_wrapper.cpp
 # depends on openssl
 echo ../src/utils/crypto_tools_openssl.cpp
 
+# depends on qrencode
+echo ../src/qrcode/qrcode_content_wifi.cpp
+echo ../src/qrcode/qrcode.cpp
+echo ../src/test/test_qrcode.cpp
+
 # buffer manager
 # echo ../src/manager/buffer_manager.cpp
 # echo ../src/test/test_buffer_manager.cpp

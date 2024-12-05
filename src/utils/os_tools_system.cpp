@@ -21,6 +21,19 @@
 //
 #include "cpp_helper/cpphelper_os.hpp"
 
+//
+static int m_running = 1;
+//
+static int m_return_code = EXIT_SUCCESS;
+//
+int os_running_loop()
+{
+    while (m_running)
+    {
+        sleep(1);
+    }
+    return m_return_code;
+}
 
 int system_wrap(char *buf, size_t bufsz, const char *msg, ...)
 {
@@ -92,6 +105,11 @@ static void dump_backtrace(int sig_num, siginfo_t *info, void *ucontext)
 
     free(messages);
 
+    //
+    m_return_code = EXIT_FAILURE;
+    //
+    m_running = 0;
+    //
     exit(EXIT_FAILURE);
 }
 
@@ -152,6 +170,11 @@ static void cleanup_on_exit(int sig_num, siginfo_t *info, void *ucontext)
     //
     cleanup_on_exit_impl(sig_num);
 
+    //
+    m_return_code = EXIT_SUCCESS;
+    //
+    m_running = 0;
+    //
     exit(EXIT_SUCCESS);
 }
 

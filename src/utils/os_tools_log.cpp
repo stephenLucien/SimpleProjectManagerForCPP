@@ -16,10 +16,16 @@
 #include <vector>
 
 
+#define EN_ANSI_COLOR 1
+
+#if defined(EN_ANSI_COLOR) && EN_ANSI_COLOR != 0
+    #include "ansi_color.h"
+#endif
+
 //
 static const int blocksz = 1024;
 //
-static char log_buffer[blocksz * 4];
+static char log_buffer[blocksz * 128];
 //
 static PthreadMutex log_buffer_mtx;
 
@@ -53,6 +59,30 @@ int __attribute__((weak)) os_log_write_impl(int prio, const char *tag, const cha
 int os_log_write(int prio, const char *tag, const char *text)
 {
     int len = 0;
+#if defined(EN_ANSI_COLOR) && EN_ANSI_COLOR != 0
+    //
+    std::string color_set;
+    if (prio == OS_LOG_TRACE)
+    {
+        color_set = ANSI_FAINT_WHITE;
+    } else if (prio == OS_LOG_WARN)
+    {
+        color_set = ANSI_UNDERLINE_YELLOW;
+    } else if (prio == OS_LOG_ERROR)
+    {
+        color_set = ANSI_UNDERLINE_RED;
+    } else if (prio == OS_LOG_INFO)
+    {
+        color_set = ANSI_GREEN;
+    } else
+    {
+        // no color set
+    }
+    if (!color_set.empty())
+    {
+        os_log_write_impl(prio, tag, color_set.c_str(), color_set.length());
+    }
+#endif
     //
     std::vector<std::string> lines;
     split_utf8_string(text, lines, blocksz);
@@ -63,6 +93,17 @@ int os_log_write(int prio, const char *tag, const char *text)
         len += (int)l.length();
     }
 
+#if defined(EN_ANSI_COLOR) && EN_ANSI_COLOR != 0
+    if (!color_set.empty())
+    {
+        //
+        std::string color_reset = ANSI_RESET;
+        if (!color_reset.empty())
+        {
+            os_log_write_impl(prio, tag, color_reset.c_str(), color_reset.length());
+        }
+    }
+#endif
     return len;
 }
 

@@ -9,6 +9,8 @@
 extern "C" {
 #endif
 
+int os_running_loop();
+
 int system_wrap(char *buf, size_t bufsz, const char *msg, ...);
 
 #define SYSTEM(msg, ...) system_wrap((char *)__builtin_alloca(256), 256, msg, ##__VA_ARGS__)

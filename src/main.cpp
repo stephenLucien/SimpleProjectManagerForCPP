@@ -5,6 +5,7 @@
 #include "app/app.h"
 #include "manager/test_manager.h"
 #include "utils/os_tools.h"
+#include "utils/os_tools_system.h"
 
 int main(int argc, char *argv[])
 {
@@ -48,7 +49,10 @@ int main(int argc, char *argv[])
 
     // run_test("test_opencv2");
 
-    run_test("test_printf");
+    // run_test("test_printf");
+    // run_test("tvs_songlist");
 
-    return 0;
+    // run_test("qr_wifi_test");
+
+    return os_running_loop();
 }
