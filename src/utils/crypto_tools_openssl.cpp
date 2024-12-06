@@ -41,7 +41,7 @@ int openssl_base64Decode(const char* b64message, uint8_t** data, size_t* datalen
     // Decodes a base64 encoded string
     BIO *bio, *b64;
     //
-    int decodeLen = b64msglen / 4 * 3 + 4, len = 0;
+    int decodeLen = (b64msglen + 3) / 4 * 3 + 1, len = 0;
     *data = (uint8_t*)malloc(decodeLen);
     if (*data == NULL)
     {
@@ -93,6 +93,7 @@ int openssl_base64Encode(const uint8_t* data, size_t data_len, char** base64str)
     {
         return -1;
     }
+    memset(*base64str, 0, encodedSize);
 
     stream = fmemopen(*base64str, encodedSize, "w");
     if (stream == NULL)
