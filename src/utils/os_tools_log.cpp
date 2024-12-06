@@ -41,26 +41,10 @@ int __attribute__((weak)) os_log_write_impl(int prio, const char *tag, const cha
     FILE *fd = stdout;
     //
     auto wc1 = fprintf(fd, "%s/%s\t", os_log_prio_label(prio), tag);
-    //
-    auto wc2 = fwrite(text, 1, text_len, fd);
-    //
-    auto wc3 = fprintf(fd, "\n");
 
-    if (wc1 < 0 || wc2 < 0 || wc3 < 0)
-    {
-        ret = -1;
-    } else
-    {
-        ret = wc1 + wc2 + wc3;
-    }
-    return ret;
-}
-
-int os_log_write(int prio, const char *tag, const char *text)
-{
-    int len = 0;
 #if defined(EN_ANSI_COLOR) && EN_ANSI_COLOR != 0
     //
+    int         color_wc0, color_wc1;
     std::string color_set;
     if (prio == OS_LOG_TRACE)
     {
@@ -80,9 +64,48 @@ int os_log_write(int prio, const char *tag, const char *text)
     }
     if (!color_set.empty())
     {
-        os_log_write_impl(prio, tag, color_set.c_str(), color_set.length());
+        color_wc0 = fwrite(color_set.c_str(), 1, color_set.length(), fd);
     }
 #endif
+    //
+    auto wc2 = fwrite(text, 1, text_len, fd);
+#if defined(EN_ANSI_COLOR) && EN_ANSI_COLOR != 0
+    if (!color_set.empty())
+    {
+        //
+        std::string color_reset = ANSI_RESET;
+        if (!color_reset.empty())
+        {
+            color_wc1 = fwrite(color_reset.c_str(), 1, color_reset.length(), fd);
+        }
+    }
+#endif
+    //
+    auto wc3 = fprintf(fd, "\n");
+
+    if (wc1 < 0 || wc2 < 0 || wc3 < 0)
+    {
+        ret = -1;
+    }
+#if defined(EN_ANSI_COLOR) && EN_ANSI_COLOR != 0
+    else if (color_wc0 < 0 || color_wc1 < 0)
+    {
+        ret = -1;
+    }
+#endif
+    else
+    {
+        ret = wc1 + wc2 + wc3;
+#if defined(EN_ANSI_COLOR) && EN_ANSI_COLOR != 0
+        ret += color_wc0 + color_wc1;
+#endif
+    }
+    return ret;
+}
+
+int os_log_write(int prio, const char *tag, const char *text)
+{
+    int len = 0;
     //
     std::vector<std::string> lines;
     split_utf8_string(text, lines, blocksz);
@@ -93,17 +116,6 @@ int os_log_write(int prio, const char *tag, const char *text)
         len += (int)l.length();
     }
 
-#if defined(EN_ANSI_COLOR) && EN_ANSI_COLOR != 0
-    if (!color_set.empty())
-    {
-        //
-        std::string color_reset = ANSI_RESET;
-        if (!color_reset.empty())
-        {
-            os_log_write_impl(prio, tag, color_reset.c_str(), color_reset.length());
-        }
-    }
-#endif
     return len;
 }
 

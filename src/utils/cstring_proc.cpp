@@ -74,8 +74,8 @@ int __attribute__((weak)) strcicmp(char const* a, char const* b)
 int32_t hexString2byteArray(unsigned char* byteArray, size_t byteArrayLen, const char* hexString, size_t hexStringLen)
 {
     size_t i;
-
-    for (i = 0; i < (hexStringLen / 2) && i < byteArrayLen; i++)
+    //
+    for (i = 0; i < (hexStringLen / 2) && i < byteArrayLen; ++i)
     {
         if ((hexString[2 * i] <= '9') && (hexString[2 * i] >= '0'))
         {
@@ -105,14 +105,24 @@ int32_t hexString2byteArray(unsigned char* byteArray, size_t byteArrayLen, const
             return -1;
         }
     }
+
+    if (byteArrayLen > i)
+    {
+        byteArray[i] = '\0';
+    }
+
     return i;
 }
 
 
-int32_t byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned char* byteArray, size_t byteArrayLen)
+int32_t byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned char* byteArray, size_t byteArrayLen, int upcase)
 {
-    size_t        i;
+    size_t i;
+    //
     unsigned char byte_low, byte_high;
+    //
+    const char A = upcase ? 'A' : 'a';
+    //
     for (i = 0; i < byteArrayLen && i < hexStringLen / 2; i++)
     {
         byte_low  = (byteArray[i] >> 0) & 0x0f;
@@ -122,25 +132,33 @@ int32_t byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned
             hexString[i * 2] = byte_high + 0x30;
         } else
         {
-            hexString[i * 2] = byte_high - 0x0a + 'A';
+            hexString[i * 2] = byte_high - 0x0a + A;
         }
         if (byte_low < 0x0a)
         {
             hexString[i * 2 + 1] = byte_low + 0x30;
         } else
         {
-            hexString[i * 2 + 1] = byte_low - 0x0a + 'A';
+            hexString[i * 2 + 1] = byte_low - 0x0a + A;
         }
+    }
+    if (hexStringLen > 2 * i)
+    {
+        hexString[2 * i] = '\0';
     }
 
     return i;
 }
 
 
-int32_t r_byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned char* r_byteArray, size_t r_byteArrayLen)
+int32_t r_byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned char* r_byteArray, size_t r_byteArrayLen, int upcase)
 {
-    size_t        i;
+    size_t i;
+    //
     unsigned char byte_low, byte_high;
+    //
+    const char A = upcase ? 'A' : 'a';
+    //
     for (i = 0; i < r_byteArrayLen && i < hexStringLen / 2; i++)
     {
         byte_low  = (r_byteArray[r_byteArrayLen - 1 - i] >> 0) & 0x0f;
@@ -150,16 +168,21 @@ int32_t r_byteArray2hexString(char* hexString, size_t hexStringLen, const unsign
             hexString[i * 2] = byte_high + 0x30;
         } else
         {
-            hexString[i * 2] = byte_high - 0x0a + 'A';
+            hexString[i * 2] = byte_high - 0x0a + A;
         }
         if (byte_low < 0x0a)
         {
             hexString[i * 2 + 1] = byte_low + 0x30;
         } else
         {
-            hexString[i * 2 + 1] = byte_low - 0x0a + 'A';
+            hexString[i * 2 + 1] = byte_low - 0x0a + A;
         }
     }
+    if (hexStringLen > 2 * i)
+    {
+        hexString[2 * i] = '\0';
+    }
+
 
     return i;
 }

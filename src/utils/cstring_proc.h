@@ -89,9 +89,9 @@ int32_t hexString2byteArray(unsigned char* byteArray, size_t byteArrayLen, const
  * - negative : err
  * - other : number of bytes being converted
  */
-int32_t byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned char* byteArray, size_t byteArrayLen);
+int32_t byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned char* byteArray, size_t byteArrayLen, int upcase = 1);
 
-int32_t r_byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned char* r_byteArray, size_t r_byteArrayLen);
+int32_t r_byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned char* r_byteArray, size_t r_byteArrayLen, int upcase = 1);
 
 
 #ifdef __cplusplus

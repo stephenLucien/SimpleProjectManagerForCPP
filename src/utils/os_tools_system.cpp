@@ -166,7 +166,7 @@ void __attribute__((weak)) cleanup_on_exit_impl(int sig_num)
 static void cleanup_on_exit(int sig_num, siginfo_t *info, void *ucontext)
 {
     //
-    OS_LOGI("signum: %d (%s)", sig_num, strsignal(sig_num));
+    OS_LOGW("signum: %d (%s)", sig_num, strsignal(sig_num));
     //
     cleanup_on_exit_impl(sig_num);
 

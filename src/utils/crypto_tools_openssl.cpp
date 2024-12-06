@@ -17,6 +17,7 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
+#include <cstddef>
 #include "openssl/err.h"
 
 
@@ -28,19 +29,26 @@
 
 int openssl_base64Decode(const char* b64message, uint8_t** data, size_t* datalen)
 {
+    if (!b64message)
+    {
+        return -1;
+    }
     if (!data)
     {
         return -1;
     }
+    size_t b64msglen = strlen(b64message);
     // Decodes a base64 encoded string
     BIO *bio, *b64;
-    int  decodeLen = strlen(b64message) * 3 / 4 + 16, len = 0;
+    //
+    int decodeLen = b64msglen / 4 * 3 + 4, len = 0;
     *data = (uint8_t*)malloc(decodeLen);
     if (*data == NULL)
     {
         return -1;
     }
-    FILE* stream = fmemopen((void*)b64message, strlen(b64message), "r");
+    memset(*data, 0, decodeLen);
+    FILE* stream = fmemopen((void*)b64message, b64msglen, "r");
     if (stream == NULL)
     {
         FREE(*data);
@@ -51,7 +59,7 @@ int openssl_base64Decode(const char* b64message, uint8_t** data, size_t* datalen
     bio = BIO_new_fp(stream, BIO_NOCLOSE);
     bio = BIO_push(b64, bio);
     BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);  // Do not use newlines to flush buffer
-    len = BIO_read(bio, *data, strlen(b64message));
+    len = BIO_read(bio, *data, b64msglen);
 
     if (datalen)
     {
@@ -66,21 +74,27 @@ int openssl_base64Decode(const char* b64message, uint8_t** data, size_t* datalen
 
 int openssl_base64Encode(const uint8_t* data, size_t data_len, char** base64str)
 {
+    if (!data || data_len <= 0)
+    {
+        return -1;
+    }
     if (!base64str)
     {
         return -1;
     }
     // Encodes a string to base64
     BIO * bio, *b64;
-    FILE* stream      = NULL;
-    int   encodedSize = 4 * data_len / 3 + 16;
-    *base64str        = (char*)malloc(encodedSize);
+    FILE* stream = NULL;
+    //
+    int encodedSize = (data_len + 2) / 3 * 4 + 1;
+    //
+    *base64str = (char*)malloc(encodedSize);
     if (*base64str == NULL)
     {
         return -1;
     }
 
-    stream = fmemopen(*base64str, encodedSize + 1, "w");
+    stream = fmemopen(*base64str, encodedSize, "w");
     if (stream == NULL)
     {
         FREE(*base64str);

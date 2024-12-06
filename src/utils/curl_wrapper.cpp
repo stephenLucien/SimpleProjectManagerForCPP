@@ -585,7 +585,10 @@ int curl_post_form_basic(const std::string&                                  url
     //
     auto header = in_header;
     //
-    header["Content-Type"] = "application/x-www-form-urlencoded;charset=utf-8";
+    if (header.find("Content-Type") != header.end())
+    {
+        header["Content-Type"] = "application/x-www-form-urlencoded;charset=utf-8";
+    }
 
     std::string bodies;
 
@@ -618,7 +621,10 @@ int curl_post_json_basic(const std::string&                                  url
     //
     auto header = in_header;
     //
-    header["Content-Type"] = "application/json;charset=utf-8";
+    if (header.find("Content-Type") != header.end())
+    {
+        header["Content-Type"] = "application/json;charset=utf-8";
+    }
 
     std::string bodies;
     if (!body.empty())

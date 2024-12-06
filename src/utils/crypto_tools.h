@@ -12,6 +12,23 @@ extern "C" {
 
 int openssl_base64Decode(const char *b64message, uint8_t **data, size_t *datalen);
 
+/**
+ * @brief
+ *
+ * @param data
+ * @param data_len
+ * @param base64str :
+ * - Character Set: Base64 uses a set of 64 characters: A-Z, a-z, 0-9, +, and /
+ * - Groups of 6 Bits: The binary data is divided into groups of 6 bits because 2^6 = 64,
+ * so the data perfectly fitting into the set of 64 characters. 4 * 6 bits = 3 * 8 bits = 3 bytes
+ * - Padding: It may include one or two = padding characters at the end of the encoded string
+ * to ensure the output length is a multiple of 4
+ * - example:
+ * -- data_len % 3 == 0 : no padding
+ * -- data_len % 3 == 1 :
+ * -- data_len % 3 == 2 :
+ * @return int
+ */
 int openssl_base64Encode(const uint8_t *data, size_t data_len, char **base64str);
 
 int openssl_md5(const uint8_t *data, size_t datalen, unsigned char md[64], size_t *mdlen);

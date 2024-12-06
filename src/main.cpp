@@ -49,8 +49,12 @@ int main(int argc, char *argv[])
 
     // run_test("test_opencv2");
 
+    // run_test("test_base64");
+    // run_test("test_base64_openssl");
+
     // run_test("test_printf");
     // run_test("tvs_songlist");
+    run_test("tvs_authorized_parse");
 
     // run_test("qr_wifi_test");
 

@@ -45,17 +45,17 @@ void BufferManager::_genBuffers()
 {
     buffer.resize(total_sz);
 
-    OS_LOGI("bufferSize: %p, %d", buffer.data(), total_sz);
+    OS_LOGV("bufferSize: %p, %d", buffer.data(), total_sz);
 
     for (int pos = 0; pos + slice_sz <= total_sz; pos += slice_sz)
     {
         availabe_buffers.emplace_back(BufferItem(buffer.data() + pos, slice_sz));
     }
-    OS_LOGI("BufferItem count: %zu, slice_sz: %d", availabe_buffers.size(), slice_sz);
+    OS_LOGV("BufferItem count: %zu, slice_sz: %d", availabe_buffers.size(), slice_sz);
 #if 0
         for (auto &e : availabe_buffers)
         {
-            OS_LOGI("BufferItem: %p, %d", e.buf, e.bufsz);
+            OS_LOGV("BufferItem: %p, %d", e.buf, e.bufsz);
         }
 #endif
 }

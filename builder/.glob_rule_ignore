@@ -20,6 +20,7 @@ echo ../src/test/test_curl_wrapper.cpp
 
 # depends on openssl
 echo ../src/utils/crypto_tools_openssl.cpp
+echo ../src/test/test_base64_openssl.cpp
 
 # depends on qrencode
 echo ../src/qrcode/qrcode_content_wifi.cpp
