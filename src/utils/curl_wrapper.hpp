@@ -106,6 +106,9 @@ class CurlWrapper
         size_t cpsz = size > sz ? sz : size;
         //
         memcpy(ptr, data, cpsz);
+        //
+        *poffset += cpsz;
+        //
         return 0;
     }
 
