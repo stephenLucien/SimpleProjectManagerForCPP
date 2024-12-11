@@ -1,3 +1,25 @@
+# 
+define get_relative_path
+$(eval $(1) := $(lastword $(MAKEFILE_LIST)))
+endef
+#
+define get_absolute_path
+$(eval $(1) := $(abspath $(lastword $(MAKEFILE_LIST))))
+endef
+#
+define get_relative_dir
+$(eval $(1) := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST)))))
+endef
+#
+define get_absolute_dir
+$(eval $(1) := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST))))))
+endef
+
+# append LD_LIBRARY_PATH to LDFALGS
+define append_system_ld_library_path
+$(eval LDFLAGS += $(patsubst %, -L%, $(shell echo ${LD_LIBRARY_PATH} | tr ':' '\n' | awk '!seen[$$0]++' | tr '\n' ' ')))
+endef
+
 # show all installed pkg on host: pkgconf --list-all
 # Add libcurl:
 # $(call pkgconf_add libcurl)

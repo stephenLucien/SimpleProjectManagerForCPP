@@ -1,0 +1,3 @@
+# 
+LIBS += -lstdc++
+LIBS += -lpthread
