@@ -9,7 +9,23 @@
 extern "C" {
 #endif
 
+extern int m_app_running;
+
+void os_init_on_startup_impl(int num);
+
+void os_deinit_on_exit_impl(int sig_num);
+
+void os_running_loop_impl();
+
+void os_stop_running_loop_impl(int code);
+
+void os_init_on_startup(int num);
+
 int os_running_loop();
+
+void os_stop_running_loop(int code);
+
+
 
 int system_wrap(char *buf, size_t bufsz, const char *msg, ...);
 
@@ -19,7 +35,6 @@ int is_sudo(int dump = 0);
 
 int os_setup_backtrace();
 
-void cleanup_on_exit_impl(int sig_num);
 
 int os_setup_exit();
 

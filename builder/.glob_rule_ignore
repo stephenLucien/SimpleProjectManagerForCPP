@@ -11,6 +11,12 @@ find ../src -name '*.CC'
 # uncomment the following line to disable log redirection to file
 echo "../src/utils/os_tools_log_redirect.cpp"
 
+# depends on nanogui
+echo ../src/app/app_nanogui.cpp
+
+# os_loop impl for console
+# echo ../src/app/app_console.cpp
+
 # depends on opencv
 echo ../src/test/test_opencv2.cpp
 

@@ -22,18 +22,70 @@
 #include "cpp_helper/cpphelper_os.hpp"
 
 //
-static int m_running = 1;
+int m_app_running = 1;
 //
 static int m_return_code = EXIT_SUCCESS;
-//
-int os_running_loop()
+
+
+
+void __attribute__((weak)) os_init_on_startup_impl(int num)
 {
-    while (m_running)
+    OS_LOGV("%s", __FILE__);
+}
+
+
+void __attribute__((weak)) os_deinit_on_exit_impl(int sig_num)
+{
+    OS_LOGV("%s", __FILE__);
+}
+
+//
+void __attribute__((weak)) os_running_loop_impl()
+{
+    OS_LOGV("%s", __FILE__);
+    while (m_app_running)
     {
         sleep(1);
     }
+    OS_LOGV("%s", __FILE__);
+}
+
+void __attribute__((weak)) os_stop_running_loop_impl(int code)
+{
+    OS_LOGV("%s", __FILE__);
+}
+
+
+void os_init_on_startup(int num)
+{
+    //
+    os_setup_backtrace();
+    os_setup_exit();
+
+    //
+    os_init_on_startup_impl(num);
+}
+
+int os_running_loop()
+{
+    //
+    os_running_loop_impl();
+    //
+    os_deinit_on_exit_impl(0);
+
     return m_return_code;
 }
+
+
+void os_stop_running_loop(int code)
+{
+    os_stop_running_loop_impl(code);
+    //
+    m_return_code = code;
+    //
+    m_app_running = 0;
+}
+
 
 int system_wrap(char *buf, size_t bufsz, const char *msg, ...)
 {
@@ -106,11 +158,7 @@ static void dump_backtrace(int sig_num, siginfo_t *info, void *ucontext)
     free(messages);
 
     //
-    m_return_code = EXIT_FAILURE;
-    //
-    m_running = 0;
-    //
-    exit(EXIT_FAILURE);
+    os_stop_running_loop(EXIT_FAILURE);
 }
 
 static inline int setup_backtrace_signal_hdl(int sig_num)
@@ -159,23 +207,14 @@ int os_setup_backtrace()
     return ret;
 }
 
-void __attribute__((weak)) cleanup_on_exit_impl(int sig_num)
-{
-}
 
-static void cleanup_on_exit(int sig_num, siginfo_t *info, void *ucontext)
+static void on_exit_signal(int sig_num, siginfo_t *info, void *ucontext)
 {
     //
     OS_LOGW("signum: %d (%s)", sig_num, strsignal(sig_num));
-    //
-    cleanup_on_exit_impl(sig_num);
 
     //
-    m_return_code = EXIT_SUCCESS;
-    //
-    m_running = 0;
-    //
-    exit(EXIT_SUCCESS);
+    os_stop_running_loop(EXIT_SUCCESS);
 }
 
 static inline int setup_exit_signal_hdl(int sig_num)
@@ -184,7 +223,7 @@ static inline int setup_exit_signal_hdl(int sig_num)
     //
     struct sigaction sigact;
 
-    sigact.sa_sigaction = cleanup_on_exit;
+    sigact.sa_sigaction = on_exit_signal;
     //
     sigact.sa_flags = SA_RESETHAND;
 

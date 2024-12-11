@@ -9,19 +9,8 @@
 
 int main(int argc, char *argv[])
 {
-    os_setup_backtrace();
-    os_setup_exit();
-    //
-    OS_PRINT(
-        "%s:\n"
-        "\tThis app built at %s",
-        argv[0],
-        COMPILE_TIME_STR(app));
+    os_init_on_startup(0);
 
-    if (is_sudo(1))
-    {
-        OS_PRINT("Run as sudoer!!!");
-    }
     //
     // run_test("buffer_manager");
     // run_test("curl_wrapper_get_baidu");
@@ -54,9 +43,15 @@ int main(int argc, char *argv[])
 
     // run_test("test_printf");
     // run_test("tvs_songlist");
-    run_test("tvs_authorized_parse");
+    // run_test("tvs_grouplist");
+    // run_test("tvs_authorized_parse");
+    // run_test("test_tvs_songGroups");
+    // run_test("test_tvs_songTops");
+    // run_test("test_tvs_songCollection");
+
 
     // run_test("qr_wifi_test");
+
 
     return os_running_loop();
 }

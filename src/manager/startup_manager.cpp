@@ -1,6 +1,4 @@
-#include "cleanup_manager.h"
-
-
+#include "startup_manager..h"
 
 //
 #include <string>
@@ -10,10 +8,10 @@
 
 namespace
 {
-class CleanupInstance
+class StartupInstance
 {
    public:
-    CleanupInstance(CleanupFunc func = NULL, void* data = NULL) : func(func), data(data)
+    StartupInstance(StartupFunc func = NULL, void* data = NULL) : func(func), data(data)
     {
     }
     int run(int reason)
@@ -30,36 +28,36 @@ class CleanupInstance
         ret = func(reason, data);
         //
         auto end_ts = os_get_timestamp_ms();
-        OS_LOGV("cleanup %p: ret=%d, timelapse_ms=%llu", func, ret, end_ts - begin_ts);
+        OS_LOGV("startup %p: ret=%d, timelapse_ms=%llu", func, ret, end_ts - begin_ts);
         return ret;
     }
     //
-    CleanupFunc func;
+    StartupFunc func;
     //
     void* data;
 };
 
-class CleanupManager
+class StartupManager
 {
    private:
-    CleanupManager()
+    StartupManager()
     {
     }
-    ~CleanupManager()
+    ~StartupManager()
     {
     }
     PthreadMutex m_mtx;
     //
-    std::unordered_map<std::string, CleanupInstance> m_cleans;
+    std::unordered_map<std::string, StartupInstance> m_starts;
 
    public:
-    static CleanupManager* getInstance()
+    static StartupManager* getInstance()
     {
-        static CleanupManager obj;
+        static StartupManager obj;
         return &obj;
     }
 
-    int reg(const char* tag, CleanupFunc func, void* data)
+    int reg(const char* tag, StartupFunc func, void* data)
     {
         if (!tag || !func)
         {
@@ -67,7 +65,7 @@ class CleanupManager
         }
         PthreadMutex::Writelock _l(m_mtx);
         //
-        m_cleans[std::string(tag)] = CleanupInstance(func, data);
+        m_starts[std::string(tag)] = StartupInstance(func, data);
         return 0;
     }
 
@@ -79,12 +77,12 @@ class CleanupManager
         }
         PthreadMutex::Writelock _l(m_mtx);
         //
-        auto itr = m_cleans.find(tag);
-        if (itr == m_cleans.end())
+        auto itr = m_starts.find(tag);
+        if (itr == m_starts.end())
         {
             return 0;
         }
-        m_cleans.erase(itr);
+        m_starts.erase(itr);
         return 1;
     }
 
@@ -95,8 +93,8 @@ class CleanupManager
         //
         if (tag)
         {
-            auto itr = m_cleans.find(tag);
-            if (itr == m_cleans.end())
+            auto itr = m_starts.find(tag);
+            if (itr == m_starts.end())
             {
                 OS_LOGW("<%s> not found: %s", __PRETTY_FUNCTION__, tag);
                 return -1;
@@ -107,7 +105,7 @@ class CleanupManager
             }
         } else
         {
-            for (auto& obj : m_cleans)
+            for (auto& obj : m_starts)
             {
                 OS_LOGV("int '%s'(%p)(int %d, void* %p)", obj.first.c_str(), obj.second.func, reason, obj.second.data);
                 obj.second.run(reason);
@@ -120,23 +118,23 @@ class CleanupManager
 }  // namespace
 
 
-int reg_cleanup(const char* tag, CleanupFunc func, void* data)
+int reg_startup(const char* tag, StartupFunc func, void* data)
 {
-    return CleanupManager::getInstance()->reg(tag, func, data);
+    return StartupManager::getInstance()->reg(tag, func, data);
 }
 
-int unreg_cleanup(const char* tag)
+int unreg_startup(const char* tag)
 {
-    return CleanupManager::getInstance()->unreg(tag);
+    return StartupManager::getInstance()->unreg(tag);
 }
 
-int run_cleanup(const char* tag, int reason)
+int run_startup(const char* tag, int reason)
 {
-    return CleanupManager::getInstance()->run(tag, reason);
+    return StartupManager::getInstance()->run(tag, reason);
 }
 
-void os_deinit_on_exit_impl(int sig_num)
+void os_init_on_startup_impl(int sig_num)
 {
     OS_LOGV("%s", __FILE__);
-    run_cleanup(NULL, sig_num);
+    run_startup(NULL, sig_num);
 }
