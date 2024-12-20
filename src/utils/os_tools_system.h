@@ -96,7 +96,7 @@ static inline std::string read_text_file(const std::string &path, const std::str
 
 std::string os_get_meminfo_unit();
 
-int os_get_meminfo(std::unordered_map<std::string, int> &infos, int update = 0);
+int os_get_meminfo(std::unordered_map<std::string, size_t> &infos, int update = 0);
 
 #endif
 

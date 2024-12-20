@@ -13,7 +13,7 @@ static int test_meminfo(int reason, void* userdata)
 {
     auto ret = os_update_meminfo();
     //
-    std::unordered_map<std::string, int> infos;
+    std::unordered_map<std::string, size_t> infos;
     //
     auto ret1 = os_get_meminfo(infos, 0);
     //

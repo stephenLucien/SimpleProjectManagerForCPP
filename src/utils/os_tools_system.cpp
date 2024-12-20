@@ -14,6 +14,7 @@
 #include <ucontext.h>
 #include <unistd.h>
 #include <cstdarg>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
@@ -353,9 +354,11 @@ char *read_data_from_file(const char *fn, char *buf, size_t bufsz, int *read_cnt
 //
 static PthreadMutex m_meminfo_mtx;
 //
+static char m_meminfo_buf[2048];
+//
 static std::string m_meminfo_unit;
 //
-static std::unordered_map<std::string, int> m_meminfo;
+static std::unordered_map<std::string, size_t> m_meminfo;
 /**
  * @brief
  * - sysfs: /proc/meminfo
@@ -404,45 +407,46 @@ int os_update_meminfo()
     //
     auto fn = "/proc/meminfo";
     //
-    CPP_CALLOC(char, buf, 2048);
     CPP_FOPEN(fd, fn, "r");
+    //
+    auto buf = m_meminfo_buf;
+    //
+    auto buf_sz = sizeof(m_meminfo_buf) - 1;
     if (!buf || !fd)
     {
         return ret;
     }
+    //
+    PthreadMutex::Writelock lock(m_meminfo_mtx);
+    //
     auto rc = fread(buf, 1, buf_sz, fd);
     if (rc <= 0)
     {
         return ret;
     }
-    auto str = buf;
+    buf[rc] = '\0';
     // OS_LOGV("(rc=%zu):\n%s", rc, buf);
     ret = 0;
     //
-    PthreadMutex::Writelock lock(m_meminfo_mtx);
-    //
-    auto infos = str_split(str, "\n");
-    for (auto &info : infos)
+    std::vector<char *> lines;
+    str2tokens(buf, lines, "\n");
+    for (auto &line : lines)
     {
-        // OS_LOGV("%s", info.c_str());
-        auto keyval = str_split(info, ":");
-        if (keyval.size() == 2)
+        // OS_LOGV("%s", line);
+        std::vector<char *> keyvalunit;
+        str2tokens(line, keyvalunit, ": ");
+        if (keyvalunit.size() == 3)
         {
-            auto valunit = str_split(keyval[1], " ");
-            //
-            if (valunit.size() == 2)
+            size_t sz = 0;
+            if (sscanf(keyvalunit[1], "%zu", &sz) == 1)
             {
-                int sz = -1;
-                if (sscanf(valunit[0].c_str(), "%d", &sz) == 1)
-                {
-                    m_meminfo[keyval[0]] = sz;
-                    ++ret;
-                }
-                if (valunit[1] != m_meminfo_unit)
-                {
-                    m_meminfo_unit = valunit[1];
-                    OS_LOGV("meminfo unit: %s", m_meminfo_unit.c_str());
-                }
+                m_meminfo[keyvalunit[0]] = sz;
+                ++ret;
+            }
+            if (std::string(keyvalunit[2]) != m_meminfo_unit)
+            {
+                m_meminfo_unit = keyvalunit[2];
+                OS_LOGV("meminfo unit: %s", m_meminfo_unit.c_str());
             }
         }
     }
@@ -455,7 +459,7 @@ std::string os_get_meminfo_unit()
     return m_meminfo_unit;
 }
 
-int os_get_meminfo(std::unordered_map<std::string, int> &infos, int update)
+int os_get_meminfo(std::unordered_map<std::string, size_t> &infos, int update)
 {
     //
     int ret = -1;
