@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
 
 
     // run_test("qr_wifi_test");
+    run_test("test_meminfo");
 
 
     return os_running_loop();

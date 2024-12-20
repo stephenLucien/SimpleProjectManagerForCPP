@@ -17,9 +17,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <string>
+#include <unordered_map>
 
 //
 #include "cpp_helper/cpphelper_os.hpp"
+#include "utils/cstring_proc.h"
+#include "utils/pthread_mutex.hpp"
 
 //
 int m_app_running = 1;
@@ -301,6 +305,7 @@ char *read_data_from_file(const char *fn, char *buf, size_t bufsz, int *read_cnt
     }
     do
     {
+#if 0
         if (fseek(fd, 0, SEEK_END) != 0)
         {
             OS_PRINT("fseek end fail:%s", fn);
@@ -322,20 +327,180 @@ char *read_data_from_file(const char *fn, char *buf, size_t bufsz, int *read_cnt
             OS_PRINT("overflow, fn:%s, max:%zu, but %ld ", fn, bufsz, sz);
             break;
         }
+#else
+        auto sz = bufsz - 1;
+#endif
 
         auto rc = fread(buf, 1, sz, fd);
         if (read_cnt)
         {
             *read_cnt = (int)rc;
         }
+#if 0
         if (rc == sz)
         {
         } else
         {
             OS_PRINT("read incomplete (%zu, %d): %s", rc, sz, fn);
         }
+#endif
 
     } while (0);
 
     return buf;
+}
+
+//
+static PthreadMutex m_meminfo_mtx;
+//
+static std::string m_meminfo_unit;
+//
+static std::unordered_map<std::string, int> m_meminfo;
+/**
+ * @brief
+ * - sysfs: /proc/meminfo
+MemTotal:          67872 kB
+MemFree:            5840 kB
+MemAvailable:      33592 kB
+Buffers:            5312 kB
+Cached:            24540 kB
+SwapCached:            0 kB
+Active:            19420 kB
+Inactive:          21868 kB
+Active(anon):      11460 kB
+Inactive(anon):        8 kB
+Active(file):       7960 kB
+Inactive(file):    21860 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:                 4 kB
+Writeback:             0 kB
+AnonPages:         11432 kB
+Mapped:            20748 kB
+Shmem:                40 kB
+Slab:              12540 kB
+SReclaimable:       1352 kB
+SUnreclaim:        11188 kB
+KernelStack:        1160 kB
+PageTables:          688 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:       33936 kB
+Committed_AS:     725612 kB
+VmallocTotal:     909312 kB
+VmallocUsed:           0 kB
+VmallocChunk:          0 kB
+CmaTotal:           2048 kB
+CmaFree:             844 kB
+
+ *
+ */
+int os_update_meminfo()
+{
+    int ret = -1;
+    //
+    auto fn = "/proc/meminfo";
+    //
+    CPP_CALLOC(char, buf, 2048);
+    CPP_FOPEN(fd, fn, "r");
+    if (!buf || !fd)
+    {
+        return ret;
+    }
+    auto rc = fread(buf, 1, buf_sz, fd);
+    if (rc <= 0)
+    {
+        return ret;
+    }
+    auto str = buf;
+    // OS_LOGV("(rc=%zu):\n%s", rc, buf);
+    ret = 0;
+    //
+    PthreadMutex::Writelock lock(m_meminfo_mtx);
+    //
+    auto infos = str_split(str, "\n");
+    for (auto &info : infos)
+    {
+        // OS_LOGV("%s", info.c_str());
+        auto keyval = str_split(info, ":");
+        if (keyval.size() == 2)
+        {
+            auto valunit = str_split(keyval[1], " ");
+            //
+            if (valunit.size() == 2)
+            {
+                int sz = -1;
+                if (sscanf(valunit[0].c_str(), "%d", &sz) == 1)
+                {
+                    m_meminfo[keyval[0]] = sz;
+                    ++ret;
+                }
+                if (valunit[1] != m_meminfo_unit)
+                {
+                    m_meminfo_unit = valunit[1];
+                    OS_LOGV("meminfo unit: %s", m_meminfo_unit.c_str());
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+std::string os_get_meminfo_unit()
+{
+    PthreadMutex::Readlock lock(m_meminfo_mtx);
+    return m_meminfo_unit;
+}
+
+int os_get_meminfo(std::unordered_map<std::string, int> &infos, int update)
+{
+    //
+    int ret = -1;
+    if (update)
+    {
+        //
+        ret = os_update_meminfo();
+        if (ret < 0)
+        {
+            return ret;
+        }
+    }
+    PthreadMutex::Readlock lock(m_meminfo_mtx);
+    infos = m_meminfo;
+    return 0;
+}
+
+int os_get_available_ram(int update)
+{
+    int ret = -1;
+    if (update)
+    {
+        //
+        ret = os_update_meminfo();
+        if (ret < 0)
+        {
+            return ret;
+        }
+    }
+    PthreadMutex::Readlock lock(m_meminfo_mtx);
+    //
+    int SReclaimable = 0;
+    if (m_meminfo.find("SReclaimable") != m_meminfo.end())
+    {
+        SReclaimable = m_meminfo["SReclaimable"];
+    }
+    int Inactive_file = 0;
+    if (m_meminfo.find("Inactive(file)") != m_meminfo.end())
+    {
+        Inactive_file = m_meminfo["Inactive(file)"];
+    }
+    int MemFree = 0;
+    if (m_meminfo.find("MemFree") != m_meminfo.end())
+    {
+        MemFree = m_meminfo["MemFree"];
+    }
+    return SReclaimable + Inactive_file + MemFree;
 }

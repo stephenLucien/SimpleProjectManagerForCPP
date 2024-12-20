@@ -64,6 +64,9 @@ int write_data_to_file(const char *fn, const char *data, size_t datalen);
  */
 char *read_data_from_file(const char *fn, char *buf, size_t bufsz, int *read_cnt);
 
+int os_update_meminfo();
+
+int os_get_available_ram(int update = 1);
 
 #ifdef __cplusplus
 }
@@ -71,8 +74,8 @@ char *read_data_from_file(const char *fn, char *buf, size_t bufsz, int *read_cnt
 
 
 #ifdef __cplusplus
-
     #include <string>
+    #include <unordered_map>
 
 static inline int write_text_file(const std::string &path, const std::string &str)
 {
@@ -90,6 +93,10 @@ static inline std::string read_text_file(const std::string &path, const std::str
     }
     return def;
 }
+
+std::string os_get_meminfo_unit();
+
+int os_get_meminfo(std::unordered_map<std::string, int> &infos, int update = 0);
 
 #endif
 
