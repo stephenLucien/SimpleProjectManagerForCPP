@@ -154,6 +154,7 @@ EOF
 
 # COM_COMPILE_FLAGS += -Os
 COM_COMPILE_FLAGS += -fPIC
+COM_COMPILE_FLAGS += -save-temps=obj
 COM_COMPILE_FLAGS += -fdata-sections -ffunction-sections
 COM_COMPILE_FLAGS += -fno-omit-frame-pointer
 # COM_COMPILE_FLAGS += -fstack-protector
