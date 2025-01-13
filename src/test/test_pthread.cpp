@@ -1,4 +1,5 @@
 #include <malloc.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <cstddef>
 #include <cstdint>
@@ -36,42 +37,70 @@ class TestPthread : public PthreadWrapper
 
         PTHREAD_MALLOC(char, ptr, 4);
         OS_LOGI("%p", ptr);
+
+        int state = PTHREAD_CANCEL_ENABLE;
         //
-        sleep(1000 * 30);
+        state = PthreadWrapper::disable_cancel();
+        OS_LOGW("state=%d", state);
+        auto leak = malloc(16);
+        OS_LOGW("leak: %p", leak);
+        //
+        sleep(1000 * 5);
+        if (leak)
+        {
+            OS_LOGW("");
+            free(leak);
+        }
+        OS_LOGW("");
+        PthreadWrapper::setcancelstate(state);
+        OS_LOGW("continue 1, %d", exitPending());
+        pthread_testcancel();
+        OS_LOGW("continue 2, %d", exitPending());
 
         return true;
     }
 
-
+   public:
     TestPthread()
     {
+        setNormalExitTimeout(3000);
     }
     ~TestPthread()
     {
     }
 
-   public:
     static TestPthread* getInstance()
     {
         static TestPthread obj;
         return &obj;
     }
-    bool tryRun(const std::string& taskName = "TestPthread")
+
+    bool tryRun(const char* task_name = NULL)
     {
         if (isRunning())
         {
             return false;
         }
-        return run(taskName.c_str());
+        return run(task_name);
     }
 };
 }  // namespace
 
 static int test_pthread_class(int reason, void* userdata)
 {
-    TestPthread::getInstance()->tryRun();
-    TestPthread::getInstance()->wait_loop(2000);
-    TestPthread::getInstance()->cancel();
+    // TestPthread::getInstance()->tryRun("static obj");
+    // sleep(1);
+    // TestPthread::getInstance()->cancel(true);
+    // OS_LOGD("after cancel detach");
+    // sleep(10);
+
+    TestPthread* pobj = new TestPthread();
+    pobj->tryRun("new obj");
+    sleep(1);
+    OS_LOGD("delete obj 1");
+    delete pobj;
+    OS_LOGD("delete obj 2");
+
     return 0;
 }
 

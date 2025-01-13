@@ -1,12 +1,15 @@
 #ifndef __PTHREAD_CLASS_H__
 #define __PTHREAD_CLASS_H__
 
+#include <inttypes.h>
 #include <malloc.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <string>
 
@@ -54,17 +57,11 @@ class PthreadMutex
             mLock.w_lock();
         }
 
-        /**
-         * @brief 构造时加锁
-         */
         inline Writelock(PthreadMutex* mutex) : mLock(*mutex)
         {
             mLock.w_lock();
         }
 
-        /**
-         * @brief 析构时解锁
-         */
         inline ~Writelock()
         {
             mLock.unlock();
@@ -84,17 +81,11 @@ class PthreadMutex
             mLock.r_lock();
         }
 
-        /**
-         * @brief 构造时加锁
-         */
         inline Readlock(PthreadMutex* mutex) : mLock(*mutex)
         {
             mLock.r_lock();
         }
 
-        /**
-         * @brief 析构时解锁
-         */
         inline ~Readlock()
         {
             mLock.unlock();
@@ -111,11 +102,22 @@ class PthreadWrapper
     //
     PthreadMutex m_mtx;
     /**
-     * @brief
-     * - 0 : routine does not start.
-     * - other : rountine had been created, should call pthread_join() or pthread_detach() to reclaim resources
+     * @brief pthread identifier
+     * - detached thread: valid until thread terminated.
+     * - attached thread: valid until pthread_join().
+     *
      */
-    int is_inited;
+    pthread_t tid;
+    /**
+     * @brief
+     */
+    int tid_valid;
+    /**
+     * @brief routine name
+     *
+     */
+    std::string name;
+
     /**
      * @brief routine running
      *
@@ -126,18 +128,15 @@ class PthreadWrapper
      *
      */
     int req_exit;
+
     /**
-     * @brief pthread identifier
-     * - detached thread: valid until thread terminated.
-     * - attached thread: valid until pthread_join().
+     * @brief when the destructor called,
+     * wait for normal exit at most `timeout_normal_exit` miliseconds before
+     * trigger cancel()
      *
      */
-    pthread_t tid;
-    /**
-     * @brief routine name
-     *
-     */
-    std::string name;
+    int32_t timeout_normal_exit = 60 * 1000;
+
 
     //
     void exec_loop()
@@ -186,6 +185,7 @@ class PthreadWrapper
         {
             pthread_exit(NULL);
         }
+        pthread_cleanup_push(pthread_routine_cleanup_impl, pobj);
 
         if (!pobj->name.empty())
         {
@@ -194,7 +194,6 @@ class PthreadWrapper
         enable_cancel();
 
         OS_LOGI("thread(name='%s', pid=%lu) BEGIN\n", pobj->name.c_str(), pobj->tid);
-        pthread_cleanup_push(pthread_routine_cleanup_impl, pobj);
 
         pobj->exec_loop();
 
@@ -206,40 +205,56 @@ class PthreadWrapper
 
     /**
      * @brief terminate routine
-     * - routine start & routine running: cancel and detach
-     * - routine start & routine stop: join
+     * - if routine is running: trigger pthread_cancel()
      *
+     * @param detach :
+     * - true : detach routine
+     * - false : join routine
      * @return int
      * - 0 : no error
      * - other :
-     * @note:
-     * both `is_inited` and `is_running` will be reset
+     * @note: `tid_valid` will be reset
      */
-    int cancel_task()
+    int cancel_task(bool detach = false)
     {
         int ret = 0;
         //
-        if (is_inited == 0)
+        req_exit = 1;
+        //
+        if (tid_valid == 0)
         {
-            is_running = 0;
+            if (is_running)
+            {
+                OS_LOGW("thread(name='%s', pid=%lu) running, but detach?\n", name.c_str(), tid);
+            }
             return ret;
         }
 
         if (is_running)
         {
-            // cancel before detach, since tid may be invalid if detached thread is terminated.
+            /**
+             * @brief
+             * @note cancel before detach, since tid may be invalid if detached thread is terminated.
+             * @note just send a signal, routine will be terminated at next cancellation point.
+             *
+             */
             ret = pthread_cancel(tid);
             OS_LOGW("%s: pthread_cancel(pid=%lu) ret=%d, name=%s\n", __PRETTY_FUNCTION__, tid, ret, this->name.c_str());
-            ret = pthread_detach(tid);
-            OS_LOGW("%s: pthread_detach(pid=%lu) ret=%d, name=%s\n", __PRETTY_FUNCTION__, tid, ret, this->name.c_str());
-            is_running = 0;
-        } else
-        {
-            ret = pthread_join(tid, NULL);
-            OS_LOGW("%s: pthread_join(pid=%lu) ret=%d, name=%s\n", __PRETTY_FUNCTION__, tid, ret, this->name.c_str());
         }
 
-        is_inited = 0;
+        if (detach)
+        {
+            ret = pthread_detach(tid);
+            OS_LOGI("%s: pthread_detach(pid=%lu) ret=%d, name=%s\n", __PRETTY_FUNCTION__, tid, ret, this->name.c_str());
+        } else
+        {
+            OS_LOGV("thread(name='%s', pid=%lu) joining, may take some time!\n", name.c_str(), tid);
+            ret = pthread_join(tid, NULL);
+            OS_LOGI("%s: pthread_join(pid=%lu) ret=%d, name=%s\n", __PRETTY_FUNCTION__, tid, ret, this->name.c_str());
+        }
+
+        tid_valid = 0;
+
         return ret;
     }
 
@@ -248,13 +263,14 @@ class PthreadWrapper
      */
     bool begin_loop()
     {
-        if (is_inited && is_running)
+        int ret = -1;
+        //
+        cancel_task(false);
+        //
+        if (is_running)
         {
             return false;
         }
-
-        cancel_task();
-
         if (!readyToRun())
         {
             return false;
@@ -265,7 +281,7 @@ class PthreadWrapper
         //
         is_running = 1;
         //
-        int ret = pthread_create(&tid, NULL, pthread_routine_running_impl, this);
+        ret = pthread_create(&tid, NULL, pthread_routine_running_impl, this);
         //
         if (ret)
         {
@@ -274,7 +290,7 @@ class PthreadWrapper
             return false;
         } else
         {
-            is_inited = 1;
+            tid_valid = 1;
             OS_LOGV("%s: pthread_create(pid=%lu) success, name=%s\n", __PRETTY_FUNCTION__, tid, this->name.c_str());
         }
 
@@ -282,19 +298,36 @@ class PthreadWrapper
     }
 
    public:
-    PthreadWrapper()
+    PthreadWrapper(const std::string& taskName = std::string())
     {
-        is_inited = 0;
+        tid_valid = 0;
         //
         is_running = 0;
         //
         req_exit = 0;
         //
-        name = std::string();
+        setTaskName(taskName);
     }
     virtual ~PthreadWrapper()
     {
-        requestExitAndWait();
+        if (is_detached())
+        {
+            OS_LOGV("thread(name='%s', pid=%lu) requestExitAndWait\n", name.c_str(), tid);
+            // since the rountine refer to this obj, we block the destructor incase of segmentation fault
+            requestExitAndWait(INT32_MAX);
+            if (is_running)
+            {
+                OS_LOGV("thread(name='%s', pid=%lu) oops!!! crash...\n", name.c_str(), tid);
+                fflush(stderr);
+                fflush(stdout);
+            }
+        } else
+        {
+            // try normal exit first
+            requestExitAndWait(timeout_normal_exit);
+            // try cancellation point
+            cancel_task(false);
+        }
     }
 
     /**
@@ -313,12 +346,22 @@ class PthreadWrapper
     // Disable copy
     PthreadWrapper& operator=(const PthreadWrapper&) = delete;
 
+    void setTaskName(const std::string& taskName)
+    {
+        this->name = taskName;
+    }
+
+    void setNormalExitTimeout(int32_t ms)
+    {
+        timeout_normal_exit = ms;
+    }
+
     bool run(const char* task_name = NULL)
     {
         PthreadMutex::Writelock lock(m_mtx);
         if (task_name)
         {
-            this->name = task_name;
+            setTaskName(task_name);
         }
         return begin_loop();
     }
@@ -340,16 +383,12 @@ class PthreadWrapper
      * @return true : task end
      * @return false : task running
      */
-    bool wait_loop(int timeout_ms = 30 * 1000)
+    bool wait_loop(int32_t timeout_ms = 30 * 1000)
     {
-        const int duration_ms = 50;
+        const int32_t duration_ms = 50;
         do
         {
             if (timeout_ms <= 0)
-            {
-                break;
-            }
-            if (!is_inited)
             {
                 break;
             }
@@ -357,11 +396,12 @@ class PthreadWrapper
             {
                 break;
             }
-            int wait_ms = timeout_ms > duration_ms ? duration_ms : timeout_ms;
+            auto wait_ms = timeout_ms > duration_ms ? duration_ms : timeout_ms;
             usleep(1000 * wait_ms);
             timeout_ms -= wait_ms;
         } while (true);
-        return !(is_inited && is_running);
+
+        return !(is_running);
     }
 
     /**
@@ -399,26 +439,52 @@ class PthreadWrapper
         return oldstate;
     }
 
-    void cancel()
+    bool is_detached()
     {
-        PthreadMutex::Writelock lock(m_mtx);
-        cancel_task();
+        return tid_valid == 0 && is_running;
     }
 
     /**
-     * @brief 请求并等待线程退出
-     * @attention 线程退出，函数才返回
+     * @brief terminate routine at next cancellation point.
+     * routine may be terminated faster then normal exit.
+     *
+     * @note it is a good practice not to use cancellation point.
+     * @note CAUTION!!! use it carefully, especially when the routine
+     * uses heap memory. Setup pthread_cleanup_push() && pthread_cleanup_pop() in routine
+     * whenever you consider calling this function.
+     * \ref https://man7.org/linux/man-pages/man3/pthread_cleanup_push.3.html
+     *
+     * @param detach :
+     * - true : trigger pthread_cancel() and immediately return
+     * - false: trigger pthread_cancel() and wait until routine terminated
      */
-    void requestExitAndWait(int timeout_ms = 3000)
+    void cancel(bool detach = false)
     {
+        PthreadMutex::Writelock lock(m_mtx);
+        cancel_task(detach);
+    }
+
+
+    /**
+     * @brief request exit and wait for timeout_ms until routine end.
+     *
+     * @param timeout_ms
+     * @return true : terminated
+     * @return false : still running
+     */
+    bool requestExitAndWait(int32_t timeout_ms = INT32_MAX)
+    {
+        OS_LOGV("timeout_ms=%" PRId32 "", timeout_ms);
         requestExit();
+        //
         wait_loop(timeout_ms);
-        cancel();
+
+        return !(is_running);
     }
 
    protected:
     /**
-     * @brief 是否有退出线程请求
+     * @brief check whether routine should be terminated
      */
     virtual bool exitPending()
     {
@@ -427,7 +493,7 @@ class PthreadWrapper
     }
 
     /**
-     * @brief 线程开始运行时回调该接口
+     * @brief call before routine created
      */
     virtual bool readyToRun()
     {
@@ -436,8 +502,10 @@ class PthreadWrapper
     }
 
     /**
-     * @brief 线程循环调用该接口
-     * @return true 不退出线程，false 将退出线程
+     * @brief
+     *
+     * @return true : continue routine
+     * @return false : break routine
      */
     virtual bool threadLoop()
     {
