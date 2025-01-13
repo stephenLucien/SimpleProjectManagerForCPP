@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include "utils/os_tools.h"
-#include "utils/pthread_mutex.hpp"
+#include "utils/pthread_class.hpp"
 
 namespace
 {

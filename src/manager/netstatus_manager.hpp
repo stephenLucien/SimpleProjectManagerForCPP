@@ -4,7 +4,6 @@
 //
 #include "utils/os_tools_net.h"
 #include "utils/pthread_class.hpp"
-#include "utils/pthread_mutex.hpp"
 
 class NetStatusManager : public PthreadWrapper
 {

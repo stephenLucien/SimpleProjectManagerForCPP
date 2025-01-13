@@ -1,7 +1,7 @@
 #include "os_tools_log.h"
 
 //
-#include "pthread_mutex.hpp"
+#include "pthread_class.hpp"
 
 //
 #include <stdio.h>

@@ -8,7 +8,6 @@
 //
 #include "utils/os_tools.h"
 #include "utils/pthread_class.hpp"
-#include "utils/pthread_mutex.hpp"
 
 BufferManager::BufferManager(int slice_sz, int total_cnt, BufferItemHDL func, void *func_data, int cb_duration_ms)
 {

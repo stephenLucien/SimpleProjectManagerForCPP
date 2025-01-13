@@ -7,7 +7,6 @@
 
 //
 #include "utils/pthread_class.hpp"
-#include "utils/pthread_mutex.hpp"
 
 class BufferManager : public PthreadWrapper
 {
