@@ -561,44 +561,44 @@ class TmpDisablePthreadCancel
     type* name = name##_cpp_ptr.get()
 
 
-#define PTHREAD_FOPEN(fd, path, mode)                                                             \
-    int                                    name##_cancelstate = PthreadWrapper::disable_cancel(); \
-    std::unique_ptr<FILE, void (*)(FILE*)> fd##_cpp_ptr(fopen(path, mode),                        \
-                                                        [](FILE* ptr)                             \
-                                                        {                                         \
-                                                            if (ptr)                              \
-                                                            {                                     \
-                                                                fclose(ptr);                      \
-                                                            }                                     \
-                                                        });                                       \
-    PthreadWrapper::setcancelstate(name##_cancelstate);                                           \
+#define PTHREAD_FOPEN(fd, path, mode)                                                           \
+    int                                    fd##_cancelstate = PthreadWrapper::disable_cancel(); \
+    std::unique_ptr<FILE, void (*)(FILE*)> fd##_cpp_ptr(fopen(path, mode),                      \
+                                                        [](FILE* ptr)                           \
+                                                        {                                       \
+                                                            if (ptr)                            \
+                                                            {                                   \
+                                                                fclose(ptr);                    \
+                                                            }                                   \
+                                                        });                                     \
+    PthreadWrapper::setcancelstate(fd##_cancelstate);                                           \
     FILE* fd = fd##_cpp_ptr.get()
 
-#define PTHREAD_POPEN(fd, cmd, mode)                                                              \
-    int                                    name##_cancelstate = PthreadWrapper::disable_cancel(); \
-    std::unique_ptr<FILE, void (*)(FILE*)> fd##_cpp_ptr(popen(cmd, mode),                         \
-                                                        [](FILE* ptr)                             \
-                                                        {                                         \
-                                                            if (ptr)                              \
-                                                            {                                     \
-                                                                fclose(ptr);                      \
-                                                            }                                     \
-                                                        });                                       \
-    FILE*                                  fd = fd##_cpp_ptr.get()
+#define PTHREAD_POPEN(fd, cmd, mode)                                                            \
+    int                                    fd##_cancelstate = PthreadWrapper::disable_cancel(); \
+    std::unique_ptr<FILE, void (*)(FILE*)> fd##_cpp_ptr(popen(cmd, mode),                       \
+                                                        [](FILE* ptr)                           \
+                                                        {                                       \
+                                                            if (ptr)                            \
+                                                            {                                   \
+                                                                fclose(ptr);                    \
+                                                            }                                   \
+                                                        });                                     \
+    PthreadWrapper::setcancelstate(fd##_cancelstate);                                           \
+    FILE* fd = fd##_cpp_ptr.get()
 
-#define PTHREAD_OPENDIR(dir, path)                                                              \
-    int                                  name##_cancelstate = PthreadWrapper::disable_cancel(); \
-    std::unique_ptr<DIR, void (*)(DIR*)> dir##_cpp_ptr(opendir(path),                           \
-                                                       [](DIR* ptr)                             \
-                                                       {                                        \
-                                                           if (ptr)                             \
-                                                           {                                    \
-                                                               closedir(ptr);                   \
-                                                           }                                    \
-                                                       });                                      \
-    PthreadWrapper::setcancelstate(name##_cancelstate);                                         \
+#define PTHREAD_OPENDIR(dir, path)                                                             \
+    int                                  dir##_cancelstate = PthreadWrapper::disable_cancel(); \
+    std::unique_ptr<DIR, void (*)(DIR*)> dir##_cpp_ptr(opendir(path),                          \
+                                                       [](DIR* ptr)                            \
+                                                       {                                       \
+                                                           if (ptr)                            \
+                                                           {                                   \
+                                                               closedir(ptr);                  \
+                                                           }                                   \
+                                                       });                                     \
+    PthreadWrapper::setcancelstate(dir##_cancelstate);                                         \
     DIR* dir = dir##_cpp_ptr.get()
-
 
 
 #endif  // __PTHREAD_CLASS_H__
