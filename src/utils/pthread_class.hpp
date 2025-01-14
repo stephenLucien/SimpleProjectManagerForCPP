@@ -248,7 +248,10 @@ class PthreadWrapper
             OS_LOGI("%s: pthread_detach(pid=%lu) ret=%d, name=%s\n", __PRETTY_FUNCTION__, tid, ret, this->name.c_str());
         } else
         {
-            OS_LOGV("thread(name='%s', pid=%lu) joining, may take some time!\n", name.c_str(), tid);
+            if (is_running)
+            {
+                OS_LOGV("thread(name='%s', pid=%lu) joining, may take some time!\n", name.c_str(), tid);
+            }
             ret = pthread_join(tid, NULL);
             OS_LOGI("%s: pthread_join(pid=%lu) ret=%d, name=%s\n", __PRETTY_FUNCTION__, tid, ret, this->name.c_str());
         }
