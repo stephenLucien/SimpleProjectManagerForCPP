@@ -333,6 +333,18 @@ class PthreadWrapper
         }
     }
 
+
+    /**
+     * @brief sleep for milisecond
+     *
+     * @param msec
+     */
+    static void msleep(int msec)
+    {
+        msec = msec >= 0 ? msec : 0;
+        usleep(msec * 1000);
+    }
+
     /**
      * @brief sleep for milisecond
      *
@@ -340,8 +352,7 @@ class PthreadWrapper
      */
     static void sleep(int msec)
     {
-        msec = msec >= 0 ? msec : 0;
-        usleep(msec * 1000);
+        msleep(msec);
     }
 
     // Disable copy constructor

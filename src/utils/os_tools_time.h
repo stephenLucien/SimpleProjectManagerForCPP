@@ -17,6 +17,8 @@ time_t os_get_epoch_time();
 
 uint64_t os_get_timestamp_ms();
 
+uint64_t os_get_timelapse_ms(uint64_t cmpTs);
+
 char *os_logts_str(char *buffer, size_t buffer_len);
 
 uint64_t os_logts_ms();

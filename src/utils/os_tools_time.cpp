@@ -6,6 +6,7 @@
 //
 #include <sys/time.h>
 #include <cerrno>
+#include <cstdint>
 #include <cstring>
 
 
@@ -48,6 +49,23 @@ uint64_t os_get_timestamp_ms()
     return ts;
 }
 
+uint64_t os_get_timelapse_ms(uint64_t cmpTs)
+{
+    auto curts = os_get_timestamp_ms();
+    //
+    auto lapse_ms = curts;
+    //
+    if (curts >= cmpTs)
+    {
+        lapse_ms = curts - cmpTs;
+    } else
+    {
+        // overflow: UINT64_MAX + 1 + curts - cmpTs = UINT64_MAX - ( cmpTs - 1 - curts )
+        lapse_ms = UINT64_MAX - (cmpTs - 1 - curts);
+    }
+    // OS_LOGD("curts=%" PRIu64 ", cmpTs=%" PRIu64 ", lapse_ms=%" PRIu64 "", curts, cmpTs, lapse_ms);
+    return lapse_ms;
+}
 
 
 char *os_logts_str(char *buffer, size_t buffer_len)

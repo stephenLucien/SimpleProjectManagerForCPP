@@ -93,6 +93,13 @@ int32_t byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned
 
 int32_t r_byteArray2hexString(char* hexString, size_t hexStringLen, const unsigned char* r_byteArray, size_t r_byteArrayLen, int upcase = 1);
 
+int revert_array_inplace(void* data, size_t datasz, int step, void* swap_buf);
+
+static inline void revert_byte_array(void* data, size_t len)
+{
+    uint8_t swap_buf;
+    revert_array_inplace(data, len, 1, &swap_buf);
+}
 
 #ifdef __cplusplus
 }

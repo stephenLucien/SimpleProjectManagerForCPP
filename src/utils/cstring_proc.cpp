@@ -187,6 +187,44 @@ int32_t r_byteArray2hexString(char* hexString, size_t hexStringLen, const unsign
     return i;
 }
 
+
+int revert_array_inplace(void* data, size_t datasz, int step, void* swap_buf)
+{
+    int32_t ret = -1;
+    if (!data)
+    {
+        return ret;
+    }
+    if (step < 1)
+    {
+        return ret;
+    }
+    // check data align
+    if (datasz % step)
+    {
+        return ret;
+    }
+
+    auto ptr_b  = (uint8_t*)data;
+    auto ptr_rb = ptr_b + datasz - step;
+
+    ret = 0;
+    while (ptr_b < ptr_rb)
+    {
+        memcpy(swap_buf, ptr_b, step);
+        memcpy(ptr_b, ptr_rb, step);
+        memcpy(ptr_rb, swap_buf, step);
+
+        ptr_b  += step;
+        ptr_rb -= step;
+        ++ret;
+    }
+
+    return ret;
+}
+
+
+
 int verstr2bytes(std::string ver_str, std::vector<uint8_t>& ver_bytes)
 {
     int ret = 0;
