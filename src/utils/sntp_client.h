@@ -16,7 +16,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
-#include <cstdint>
 #include "cstring_proc.h"
 
 #define SNTP_CLIENT_CHECK_TIMELAPSE  1
@@ -65,15 +64,35 @@ typedef union __attribute__((packed))
 #define NTP_TIMESTAMP_UNIX_DELTA (2'208'988'800)
 
 
-static inline uint64_t ntp_ts_to_unix_time(NtpTimestamp ntp_ts, uint64_t reference_epoch_time)
+static inline uint64_t ntp_ts_to_unix_time(NtpTimestamp ntp_ts, uint64_t epoch_refer)
 {
-    uint64_t reference_ntp_seconds = reference_epoch_time + NTP_TIMESTAMP_UNIX_DELTA;
-    // only overflow bits were taken from reference_epoch_time
-    uint64_t epoch_time_high32bits = reference_ntp_seconds & 0xFF'FF'FF'FF'00'00'00'00;
-    // low 32bits were taken from ntp timestamp
-    uint64_t epoch_time_low32bits = ((uint64_t)ntp_ts.part.integer + UINT32_MAX + 1 - NTP_TIMESTAMP_UNIX_DELTA) & 0x00'00'00'00'FF'FF'FF'FF;
+    const uint64_t low32bitmask     = 0x00'00'00'00'FF'FF'FF'FF;
+    const uint64_t high32bitmask    = 0xFF'FF'FF'FF'00'00'00'00;
+    const uint64_t overflow_advance = low32bitmask + 1;
     //
-    return epoch_time_high32bits | epoch_time_low32bits;
+    uint64_t ntp_seconds = ntp_ts.part.integer;
+    {
+        // convert ntp time to this duration: [ntp_refer_low, ntp_refer_high]
+        uint64_t ntp_refer      = epoch_refer + NTP_TIMESTAMP_UNIX_DELTA;
+        uint64_t ntp_refer_low  = ntp_refer & high32bitmask;
+        uint64_t ntp_refer_high = ntp_refer_low + overflow_advance;
+        // The result of (ntp_ts.part.integer + ntp_refer_low) should be located at [ntp_refer_low, ntp_refer_high]
+        ntp_seconds += ntp_refer_low;
+        // ntp time should greater than NTP_TIMESTAMP_UNIX_DELTA
+        if (ntp_seconds < NTP_TIMESTAMP_UNIX_DELTA)
+        {
+            ntp_seconds += overflow_advance;
+        }
+    }
+    uint64_t epoch_time = (ntp_seconds - NTP_TIMESTAMP_UNIX_DELTA) & low32bitmask;
+    {
+        // final epoch time should convert to this duration [epoch_refer_low, epoch_refer_high]
+        uint64_t epoch_refer_low  = epoch_refer & high32bitmask;
+        uint64_t epoch_refer_high = epoch_refer_low + overflow_advance;
+        // The result should be located at [ntp_refer_low, ntp_refer_high]
+        epoch_time += epoch_refer_low;
+    }
+    return epoch_time;
 }
 
 /**
