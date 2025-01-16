@@ -64,7 +64,7 @@ typedef union __attribute__((packed))
 #define NTP_TIMESTAMP_UNIX_DELTA (2'208'988'800)
 
 
-static uint64_t ntp_ts_to_unix_time(NtpTimestamp ntp_ts, uint64_t reference_epoch_time)
+static inline uint64_t ntp_ts_to_unix_time(NtpTimestamp ntp_ts, uint64_t reference_epoch_time)
 {
     uint64_t reference_ntp_seconds = reference_epoch_time + NTP_TIMESTAMP_UNIX_DELTA;
     // only overflow bits were taken from reference_epoch_time
