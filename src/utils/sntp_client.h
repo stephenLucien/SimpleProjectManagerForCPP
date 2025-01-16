@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
+#include <cstdint>
 #include "cstring_proc.h"
 
 #define SNTP_CLIENT_CHECK_TIMELAPSE  1
@@ -116,11 +117,15 @@ static inline uint64_t ntp_ts_to_unix_time(NtpTimestamp ntp_ts, uint64_t referen
  *  (broadcast).  The other modes are not used by SNTP servers and
  *  clients.
  */
-typedef struct __attribute__((packed))
+typedef union __attribute__((packed))
 {
-    uint8_t Mode : 3;
-    uint8_t VN   : 3;
-    uint8_t LI   : 2;
+    struct
+    {
+        uint8_t Mode : 3;
+        uint8_t VN   : 3;
+        uint8_t LI   : 2;
+    } bits;
+    uint8_t byte;
 } NtpLiVnMode;
 
 /**
@@ -321,8 +326,8 @@ static inline NtpMinPacket ntp_min_packet_gen_for_client()
     //
     memset(&pkt, 0, sizeof(pkt));
     //
-    pkt.leap_version_mode.VN   = 4;
-    pkt.leap_version_mode.Mode = 3;
+    pkt.leap_version_mode.bits.VN   = 4;
+    pkt.leap_version_mode.bits.Mode = 3;
 
 #if defined(SNTP_CLIENT_CHECK_TIMELAPSE) && SNTP_CLIENT_CHECK_TIMELAPSE != 0
     /**
@@ -374,15 +379,15 @@ static inline NtpMinPacket ntp_min_packet_from_server_netdata(const uint8_t* net
 
 static inline int ntp_min_packet_from_server_is_valid(NtpMinPacket pkt)
 {
-    if (!(pkt.leap_version_mode.LI >= 0 && pkt.leap_version_mode.LI <= 3))
+    if (!(pkt.leap_version_mode.bits.LI >= 0 && pkt.leap_version_mode.bits.LI <= 3))
     {
         return 0;
     }
-    if (!(pkt.leap_version_mode.VN >= 1 && pkt.leap_version_mode.VN <= 4))
+    if (!(pkt.leap_version_mode.bits.VN >= 1 && pkt.leap_version_mode.bits.VN <= 4))
     {
         return 0;
     }
-    if (!(pkt.leap_version_mode.Mode == 4 || pkt.leap_version_mode.Mode == 5))
+    if (!(pkt.leap_version_mode.bits.Mode == 4 || pkt.leap_version_mode.bits.Mode == 5))
     {
         return 0;
     }
@@ -403,7 +408,7 @@ static inline int ntp_min_packet_from_server_is_good(NtpMinPacket pkt)
     {
         return 0;
     }
-    if (pkt.leap_version_mode.LI == 3)
+    if (pkt.leap_version_mode.bits.LI == 3)
     {
         // server clock not sync
         return 0;
