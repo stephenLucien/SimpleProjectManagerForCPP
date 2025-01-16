@@ -16,9 +16,14 @@
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
-#include <cstdint>
 #include "cstring_proc.h"
-#include "utils/os_tools_time.h"
+
+#define SNTP_CLIENT_CHECK_TIMELAPSE  1
+#define SNTP_CLIENT_MAX_TIMELAPSE_MS (3000)
+
+#if defined(SNTP_CLIENT_CHECK_TIMELAPSE) && SNTP_CLIENT_CHECK_TIMELAPSE != 0
+    #include "utils/os_tools_time.h"
+#endif
 
 /**
  * @brief In conformance with standard Internet practice,
@@ -58,11 +63,16 @@ typedef union __attribute__((packed))
 //
 #define NTP_TIMESTAMP_UNIX_DELTA (2'208'988'800)
 
-static uint32_t ntp_ts_to_unix_time(NtpTimestamp ntp_ts)
+
+static uint64_t ntp_ts_to_unix_time(NtpTimestamp ntp_ts, uint64_t reference_epoch_time)
 {
-    uint64_t epoch_time = (uint64_t)ntp_ts.part.integer + UINT32_MAX + 1 - NTP_TIMESTAMP_UNIX_DELTA;
+    uint64_t reference_ntp_seconds = reference_epoch_time + NTP_TIMESTAMP_UNIX_DELTA;
+    // only overflow bits were taken from reference_epoch_time
+    uint64_t epoch_time_high32bits = reference_ntp_seconds & 0xFF'FF'FF'FF'00'00'00'00;
+    // low 32bits were taken from ntp timestamp
+    uint64_t epoch_time_low32bits = ((uint64_t)ntp_ts.part.integer + UINT32_MAX + 1 - NTP_TIMESTAMP_UNIX_DELTA) & 0x00'00'00'00'FF'FF'FF'FF;
     //
-    return epoch_time & 0xFFFFFFFF;
+    return epoch_time_high32bits | epoch_time_low32bits;
 }
 
 /**
@@ -313,6 +323,8 @@ static inline NtpMinPacket ntp_min_packet_gen_for_client()
     //
     pkt.leap_version_mode.VN   = 4;
     pkt.leap_version_mode.Mode = 3;
+
+#if defined(SNTP_CLIENT_CHECK_TIMELAPSE) && SNTP_CLIENT_CHECK_TIMELAPSE != 0
     /**
      * @brief The server copies this field to the Originate Timestamp in the reply, so
      * feel free to set this data field to any kind of data.
@@ -321,7 +333,7 @@ static inline NtpMinPacket ntp_min_packet_gen_for_client()
      *
      */
     pkt.TransmitTimestamp = {.ntp_ts = os_get_timestamp_ms()};
-    //
+#endif
     //
     return pkt;
 }
@@ -401,13 +413,17 @@ static inline int ntp_min_packet_from_server_is_good(NtpMinPacket pkt)
         // server informs client to stop request!
         return 0;
     }
+
+#if defined(SNTP_CLIENT_CHECK_TIMELAPSE) && SNTP_CLIENT_CHECK_TIMELAPSE != 0
     //
     uint64_t timelapse_ms = os_get_timelapse_ms(pkt.OriginateTimestamp.ntp_ts);
-    if (timelapse_ms > 3000)
+    if (timelapse_ms > SNTP_CLIENT_MAX_TIMELAPSE_MS)
     {
         return 0;
     }
     return (int)timelapse_ms;
+#endif
+    return 1;
 }
 
 

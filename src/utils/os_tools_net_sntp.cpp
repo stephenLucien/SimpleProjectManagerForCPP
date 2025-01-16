@@ -1,15 +1,153 @@
 #include "os_tools_net_sntp.h"
 
 //
+#include <cstdint>
+#include <cstdio>
 #include "cpp_helper/cpphelper_epoll.hpp"
+#include "os_tools_net.h"
 #include "os_tools_net_socket.hpp"
-#include "utils/sntp_client.h"
+#include "sntp_client.h"
 
+#define USING_EPOLL 1
 
-int os_tools_sntp_get_epoch(const char* ipv4_str, uint16_t port, time_t* ptime)
+static ssize_t os_tools_sntp_client_send(int fd)
 {
-    int ret = -1;
     //
+    auto send_pkt = ntp_min_packet_gen_for_client();
+    //
+    uint8_t send_buf[sizeof(NtpMinPacket)];
+    //
+    int send_bufsz = ntp_min_packet_to_client_netdata(send_pkt, send_buf, sizeof(send_buf));
+    //
+    auto wc = CppSocket::write_data(fd, send_buf, send_bufsz);
+    if (wc < 0)
+    {
+        //
+        OS_LOGD("errno:%s\n", errno, strerror(errno));
+        return wc;
+    }
+    if (wc != send_bufsz)
+    {
+        OS_LOGV("buf(sent:%zd/%d):\n%s", wc, send_bufsz, OS_LOG_HEXDUMP(send_buf, send_bufsz));
+        return -1;
+    }
+    return 0;
+}
+
+static ssize_t os_tools_sntp_client_recv(int fd, uint64_t* output_epoch_time, uint64_t reference_epoch_time = 0)
+{
+    uint8_t recv_buf[sizeof(NtpMinPacket)];
+    size_t  recv_bufsz = sizeof(recv_buf);
+    //
+    auto rc = CppSocket::read_data(fd, (uint8_t*)recv_buf, recv_bufsz);
+    if (rc < 0)
+    {
+        //
+        OS_LOGD("errno:%s\n", errno, strerror(errno));
+        return rc;
+    }
+    if (rc < (int)recv_bufsz)
+    {
+        OS_LOGV("buf(recv:%zd/%zu):\n%s", rc, recv_bufsz, OS_LOG_HEXDUMP(recv_buf, recv_bufsz));
+        return -1;
+    }
+    auto recv_pkt = ntp_min_packet_from_server_netdata(recv_buf, recv_bufsz);
+    if (0)
+    {
+        //
+        OS_LOGV("recv_pkt(len=%zu):\n%s", sizeof(recv_pkt), OS_LOG_HEXDUMP(&recv_pkt, sizeof(recv_pkt)));
+    }
+    //
+    auto timelapse_ms = ntp_min_packet_from_server_is_good(recv_pkt);
+    //
+    if (timelapse_ms)
+    {
+        auto unix_ts = ntp_ts_to_unix_time(recv_pkt.TransmitTimestamp, reference_epoch_time);
+        if (0)
+        {
+#if defined(SNTP_CLIENT_CHECK_TIMELAPSE) && SNTP_CLIENT_CHECK_TIMELAPSE != 0
+            //
+            OS_LOGV("timelapse_ms=%d", timelapse_ms);
+#endif
+            OS_LOGV("recv_epoch_time=%" PRIu64 ", sys_epoch_time=%" PRIu64 "", unix_ts, (uint64_t)os_get_epoch_time());
+        }
+        //
+        if (output_epoch_time)
+        {
+            *output_epoch_time = unix_ts;
+        }
+    }
+    return 0;
+}
+
+//
+int os_tools_sntp_get_epoch_impl(CppSocket& sock, time_t* ptime)
+{
+    int ret = -1, *pret = &ret;
+
+    //
+    EpollHelper::fd_set_block(sock.get(), 0);
+
+    //
+    ret = -1;
+    EpollHelper::fd_timeout_write(pret,
+                                  sock.get(),
+                                  SNTP_CLIENT_MAX_TIMELAPSE_MS,
+                                  [&](int fd, int event, void* pret)
+                                  {
+                                      //
+                                      *(int*)pret = (int)os_tools_sntp_client_send(fd);
+                                  });
+    if (ret < 0)
+    {
+        return ret;
+    }
+
+    //
+    ret = -1;
+    EpollHelper::fd_timeout_read(pret,
+                                 sock.get(),
+                                 SNTP_CLIENT_MAX_TIMELAPSE_MS,
+                                 [&](int fd, int event, void* pret)
+                                 {
+                                     uint64_t out_time;
+                                     uint64_t ref_time = time(NULL);
+                                     //
+                                     *(int*)pret = (int)os_tools_sntp_client_recv(fd, &out_time, ref_time);
+                                     //
+                                     if (ptime)
+                                     {
+                                         *ptime = out_time;
+                                     }
+                                 });
+    if (ret < 0)
+    {
+        return ret;
+    }
+
+    return 0;
+}
+
+
+int os_tools_sntp_get_epoch_by_ip4(struct in_addr ipv4_addr, uint16_t port, time_t* ptime)
+{
+    int sa_family = AF_INET;
+    //
+    CppSocket sock(sa_family, SOCK_DGRAM, 0);
+    if (!sock.isValid())
+    {
+        return -1;
+    }
+    if (sock.connect_ipv4(ipv4_addr, port))
+    {
+        return -1;
+    }
+    return os_tools_sntp_get_epoch_impl(sock, ptime);
+}
+
+
+int os_tools_sntp_get_epoch_by_ip4_str(const char* ipv4_str, uint16_t port, time_t* ptime)
+{
     int sa_family = AF_INET;
     //
     CppSocket sock(sa_family, SOCK_DGRAM, 0);
@@ -21,121 +159,76 @@ int os_tools_sntp_get_epoch(const char* ipv4_str, uint16_t port, time_t* ptime)
     {
         return -1;
     }
-#define USING_EPOLL 1
+    return os_tools_sntp_get_epoch_impl(sock, ptime);
+}
 
-#if defined(USING_EPOLL) && USING_EPOLL != 0
-    //
-    EpollHelper ep;
-    //
-    EpollHelper::fd_set_block(sock.get(), 0);
-#endif
-    //
-    auto send_pkt = ntp_min_packet_gen_for_client();
-    //
-    uint8_t send_buf[sizeof(send_pkt)];
-    //
-    size_t send_bufsz = ntp_min_packet_to_client_netdata(send_pkt, send_buf, sizeof(send_buf));
-    //
-    OS_LOGV("send_pkt(len=%zu):\n%s", send_bufsz, OS_LOG_HEXDUMP(&send_pkt, send_bufsz));
-    OS_LOGV("sendbuf(len=%zu):\n%s", send_bufsz, OS_LOG_HEXDUMP(send_buf, send_bufsz));
-    //
-    auto wfunc = [&](int fd, int event, void* pret)
-    {
-        //
-        auto wc = CppSocket::write_data(fd, (uint8_t*)send_buf, send_bufsz);
-        if (wc < 0)
-        {
-            //
-            OS_LOGD("errno:%s\n", errno, strerror(errno));
-        }
-        if (wc > 0)
-        {
-            OS_LOGV("buf(len=%zu):\n%s", wc, OS_LOG_HEXDUMP(send_buf, wc));
-        }
-        //
-        *(int*)pret = (int)wc;
-    };
-    //
-    ret = -1;
 
-#if defined(USING_EPOLL) && USING_EPOLL != 0
+int os_tools_sntp_get_epoch_by_ip6(struct in6_addr ipv6_addr, uint16_t port, time_t* ptime)
+{
+    int sa_family = AF_INET6;
     //
-    ep.fd_add(sock.get(), EPOLLOUT, wfunc, &ret);
-    //
-    if (ep.check(1000) <= 0)
+    CppSocket sock(sa_family, SOCK_DGRAM, 0);
+    if (!sock.isValid())
     {
-        OS_LOGD("timeout or error");
-    }
-    if (ret != send_bufsz)
-    {
-        OS_LOGD("ret=%d", ret);
         return -1;
     }
-#else
-    wfunc(sock.get(), 0, &ret);
-#endif
-    OS_LOGD("wc=%d", ret);
-
-    //
-    uint8_t recv_buf[sizeof(send_pkt)];
-    size_t  recv_bufsz = sizeof(recv_buf);
-    //
-    auto rfunc = [&](int fd, int event, void* pret)
+    if (sock.connect_ipv6(ipv6_addr, port))
     {
-        //
-        auto rc = CppSocket::read_data(fd, (uint8_t*)recv_buf, recv_bufsz);
-        if (rc < 0)
-        {
-            //
-            OS_LOGD("errno:%s\n", errno, strerror(errno));
-        }
-        if (rc > 0)
-        {
-            OS_LOGV("buf(len=%zu):\n%s", rc, OS_LOG_HEXDUMP(recv_buf, rc));
-        }
-        //
-        *(int*)pret = (int)rc;
-    };
-    //
-    ret = -1;
-
-#if defined(USING_EPOLL) && USING_EPOLL != 0
-    //
-    ep.fd_add(sock.get(), EPOLLIN, rfunc, &ret);
-    //
-    if (ep.check(5000) <= 0)
-    {
-        OS_LOGD("timeout or error");
-    }
-    if (ret != recv_bufsz)
-    {
-        OS_LOGD("ret=%d", ret);
         return -1;
     }
-#else
-    rfunc(sock.get(), 0, &ret);
-#endif
-    OS_LOGD("rc=%d", ret);
+    return os_tools_sntp_get_epoch_impl(sock, ptime);
+}
 
 
-    auto recv_pkt = ntp_min_packet_from_server_netdata(recv_buf, recv_bufsz);
+int os_tools_sntp_get_epoch_by_ip6_str(const char* ipv6_str, uint16_t port, time_t* ptime)
+{
+    int sa_family = AF_INET6;
     //
-    OS_LOGV("recvbuf(len=%zu):\n%s", recv_bufsz, OS_LOG_HEXDUMP(recv_buf, recv_bufsz));
-    OS_LOGV("recv_pkt(len=%zu):\n%s", recv_bufsz, OS_LOG_HEXDUMP(&recv_pkt, recv_bufsz));
-    auto timelapse_ms = ntp_min_packet_from_server_is_good(recv_pkt);
-    if (timelapse_ms)
+    CppSocket sock(sa_family, SOCK_DGRAM, 0);
+    if (!sock.isValid())
     {
-        //
-        OS_LOGI("timelapse_ms=%d, recv_epoch_time=%u, sys_epoch_time=%lu",
-                timelapse_ms,
-                ntp_ts_to_unix_time(recv_pkt.TransmitTimestamp),
-                os_get_epoch_time());
+        return -1;
     }
-
-    if (ptime)
+    if (sock.connect_ipv6(ipv6_str, port))
     {
-        *ptime = ntp_ts_to_unix_time(recv_pkt.TransmitTimestamp);
+        return -1;
     }
+    return os_tools_sntp_get_epoch_impl(sock, ptime);
+}
 
-    return 0;
+
+int os_tools_sntp_get_epoch_by_server(const char* server_domain_name, uint16_t port, time_t* ptime)
+{
+    int ret = -1;
+    //
+    if (port == 0)
+    {
+        port = 123;
+    }
+    if (!server_domain_name)
+    {
+        server_domain_name = "pool.ntp.org";
+    }
+    std::list<struct in_addr>  ipv4_addrs;
+    std::list<struct in6_addr> ipv6_addrs;
+    os_net_nslookup(server_domain_name, ipv4_addrs, ipv6_addrs);
+    //
+    for (auto& ip4 : ipv4_addrs)
+    {
+        ret = os_tools_sntp_get_epoch_by_ip4(ip4, port, ptime);
+        if (ret == 0)
+        {
+            return ret;
+        }
+    }
+    //
+    for (auto& ip6 : ipv6_addrs)
+    {
+        ret = os_tools_sntp_get_epoch_by_ip6(ip6, port, ptime);
+        if (ret == 0)
+        {
+            return ret;
+        }
+    }
+    return ret;
 }

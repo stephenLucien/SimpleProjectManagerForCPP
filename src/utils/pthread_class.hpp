@@ -488,11 +488,13 @@ class PthreadWrapper
      */
     bool requestExitAndWait(int32_t timeout_ms = INT32_MAX)
     {
-        OS_LOGV("timeout_ms=%" PRId32 "", timeout_ms);
-        requestExit();
-        //
-        wait_loop(timeout_ms);
-
+        if (is_running)
+        {
+            OS_LOGV("timeout_ms=%" PRId32 "", timeout_ms);
+            requestExit();
+            //
+            wait_loop(timeout_ms);
+        }
         return !(is_running);
     }
 

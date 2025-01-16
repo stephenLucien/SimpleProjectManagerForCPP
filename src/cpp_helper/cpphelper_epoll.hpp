@@ -87,7 +87,7 @@ class EpollHelper : PthreadWrapper
             OS_LOGE("errno=%d: %s", errno, strerror(errno));
             return ret;
         }
-        OS_LOGI("%s fd=%d", b_exist ? "MOD" : "ADD", fd);
+        // OS_LOGV("%s fd=%d", b_exist ? "MOD" : "ADD", fd);
         m_cbs[fd] = CallbackData(std::move(func), userdata);
 
         return 0;
@@ -113,7 +113,7 @@ class EpollHelper : PthreadWrapper
         auto itr = m_cbs.find(fd);
         if (itr == m_cbs.end())
         {
-            OS_LOGV("fd: %d", fd);
+            OS_LOGV("callback not found, fd: %d, bug???", fd);
             return -1;
         }
         itr->second.run(fd, event);
@@ -127,7 +127,7 @@ class EpollHelper : PthreadWrapper
         {
             if (fd_closed(itr->first))
             {
-                OS_LOGV("erase: fd=%d", itr->first);
+                OS_LOGW("EBADF, erase: fd=%d", itr->first);
                 itr = m_cbs.erase(itr);
             } else
             {
@@ -161,7 +161,7 @@ class EpollHelper : PthreadWrapper
         //
         if (!_isValid())
         {
-            OS_LOGE("");
+            // OS_LOGE("");
             return ret;
         }
         //
@@ -313,13 +313,13 @@ class EpollHelper : PthreadWrapper
         int flags = fcntl(fd, F_GETFL, 0);
         if (flags < 0)
         {
-            OS_LOGD("Get flags error:%s\n", strerror(errno));
+            OS_LOGE("Get flags error:%s\n", strerror(errno));
             return -1;
         }
         //
         auto mask = flags;
         //
-        mask  = -1;
+        memset(&mask, 0xFF, sizeof(mask));
         mask ^= O_NONBLOCK;
         //
         auto nflags = flags & mask;
@@ -328,10 +328,10 @@ class EpollHelper : PthreadWrapper
             nflags |= O_NONBLOCK;
         }
 
-        OS_LOGV("flags: 0x%X --> 0x%X", flags, nflags);
+        // OS_LOGV("flags: 0x%X --> 0x%X", flags, nflags);
         if (fcntl(fd, F_SETFL, nflags) < 0)
         {
-            OS_LOGD("Set flags error:%s\n", strerror(errno));
+            OS_LOGE("Set flags error:%s\n", strerror(errno));
             return -1;
         }
 
