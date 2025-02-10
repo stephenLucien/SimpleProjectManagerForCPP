@@ -183,7 +183,7 @@ all: dump_compile_info \${TARGET}
 include $(basename ${SRC_MK})
 
 \${TARGET}: \${OBJS}
-	\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) \$(LIBS) \$^ -o \$@
+	\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) \$^ \$(LIBS) -o \$@
 
 .PHONY: c_compiler cxx_compiler cppflags
 c_compiler:
