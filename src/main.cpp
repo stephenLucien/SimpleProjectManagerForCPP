@@ -1,58 +1,54 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <cstring>
+#include <vector>
 
 #include "app/app.h"
+#include "manager/cmdline_argument_manager.h"
 #include "manager/test_manager.h"
+#include "utils/cstring_proc.h"
 #include "utils/os_tools.h"
 #include "utils/os_tools_system.h"
 
+static void print_help_msg()
+{
+    //
+    OS_LOGD(
+        "\n"
+        "--test \"test1 test2 test3\" ");
+    exit(0);
+}
+
+REG_CMDLINE_ARG_PARSE_FUNC(0, 'h', "help", 0, {
+    //
+    print_help_msg();
+})
+
+static std::vector<std::string> tests_name;
+REG_CMDLINE_ARG_PARSE_FUNC(1, 't', "test", 1, {
+    //
+    if (_param)
+    {
+        tests_name = str_split(_param, " ");
+    }
+})
+
 int main(int argc, char *argv[])
 {
-    os_init_on_startup(0);
-
     //
-    // run_test("buffer_manager");
-    // run_test("curl_wrapper_get_baidu");
-    // run_test("os_tools_net");
-    // run_test("netstatus_manager");
-    // run_test("tcp_ping4");
-    // run_test("tcp_ping6");
-    // run_test("tcp_wan6");
-    // sync();
-    // run_test("icmp_ping4");
-    // run_test("icmp_ping6");
-    // sync();
-    // run_test("icmp_wan6");
-    // run_test("unordered_multimap");
-    // run_test("ordered_multimap");
-    // usleep(1000 * 1000 * 10);
-
-    // run_test("text_file_write");
-    // run_test("text_file_read");
-
-    // run_test("ifaces_dump");
-
-    // run_test("map_itr_erase");
-    // run_test("list_itr_erase");
-
-    // run_test("test_opencv2");
-
-    // run_test("test_base64");
-    // run_test("test_base64_openssl");
-
-    // run_test("test_printf");
-    // run_test("tvs_songlist");
-    // run_test("tvs_grouplist");
-    // run_test("tvs_authorized_parse");
-    // run_test("test_tvs_songGroups");
-    // run_test("test_tvs_songTops");
-    // run_test("test_tvs_songCollection");
-
-
-    // run_test("qr_wifi_test");
-    run_test("test_meminfo");
-
-
+    auto parse_cnt = run_cmdline_arg_parser(argc, argv);
+    //
+    if (parse_cnt <= 0)
+    {
+        print_help_msg();
+    }
+    //
+    os_init_on_startup(0);
+    //
+    for (auto &t : tests_name)
+    {
+        run_test(t.c_str());
+    }
+    //
     return os_running_loop();
 }
