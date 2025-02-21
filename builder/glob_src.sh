@@ -169,6 +169,8 @@ LDFLAGS += -Wl,--gc-sections
 
 TARGET = ${TARGET_NAME}
 
+WHOLE_OBJS_ARCHIVE = objs.whole.a
+
 all: dump_compile_info \${TARGET}
 
 -include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${DEFS_MK})
@@ -182,8 +184,12 @@ all: dump_compile_info \${TARGET}
 
 include $(basename ${SRC_MK})
 
-\${TARGET}: \${OBJS}
-	\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) \$^ \$(LIBS) -o \$@
+\${TARGET}: \${WHOLE_OBJS_ARCHIVE}
+	\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) -Wl,--whole-archive \$^ -Wl,--no-whole-archive \$(LIBS) -o \$@
+
+\${WHOLE_OBJS_ARCHIVE}: \${OBJS}
+	@rm -f \$@
+	\$(AR) rcsP \$@ $^
 
 .PHONY: c_compiler cxx_compiler cppflags
 c_compiler:
