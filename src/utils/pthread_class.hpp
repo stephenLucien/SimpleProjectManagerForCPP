@@ -137,6 +137,14 @@ class PthreadWrapper
      */
     int32_t timeout_normal_exit = 60 * 1000;
 
+    /**
+     * @brief check whether routine should be terminated
+     */
+    bool _exitPending()
+    {
+        // OS_LOGV("%s", __PRETTY_FUNCTION__);
+        return req_exit;
+    }
 
     //
     void exec_loop()
@@ -145,6 +153,10 @@ class PthreadWrapper
         while (true)
         {
             if (!threadLoop())
+            {
+                return;
+            }
+            if (_exitPending())
             {
                 return;
             }
@@ -505,7 +517,7 @@ class PthreadWrapper
     virtual bool exitPending()
     {
         // OS_LOGV("%s", __PRETTY_FUNCTION__);
-        return req_exit;
+        return false;
     }
 
     /**
