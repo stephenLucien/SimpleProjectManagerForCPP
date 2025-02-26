@@ -2,13 +2,19 @@
 
 //
 #include "common.h"
+#include "cpp_helper/cpphelper_os.hpp"
 #include "os_tools_log.h"
 #include "utils/os_tools_net.h"
+#include "utils/os_tools_system.h"
 
 //
 #include <ifaddrs.h>
 #include <netinet/in.h>
+#include <sys/dir.h>
 #include <cstring>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
 
 void CppGetIfaces::AddressV4::dump()
@@ -146,4 +152,67 @@ std::unordered_map<std::string, CppGetIfaces::IfaceInfo> CppGetIfaces::getInfos(
     }
 
     return infos;
+}
+
+
+
+int os_tools_iface_get_sys_info(std::unordered_map<std::string, std::unordered_map<std::string, std::string>> &ifaces_infos)
+{
+    int ret = -1;
+    //
+    const char *sys_path = "/sys/class/net";
+    //
+    ifaces_infos.clear();
+    {
+        std::list<std::string> entries;
+        //
+        ret = os_get_dir_entries(sys_path, entries, DT_DIR);
+        if (ret < 0)
+        {
+            OS_LOGE("");
+            return ret;
+        }
+        //
+        for (auto &e : entries)
+        {
+            ifaces_infos[e] = std::unordered_map<std::string, std::string>();
+        }
+    }
+    if (ifaces_infos.empty())
+    {
+        OS_LOGV("");
+        return 0;
+    }
+
+    for (auto itr = ifaces_infos.begin(); itr != ifaces_infos.end();)
+    {
+        std::string path = std::string(sys_path) + std::string("/") + itr->first;
+        //
+        std::list<std::string> entries;
+        //
+        ret = os_get_dir_entries(path, entries, DT_REG);
+        if (ret < 0)
+        {
+            itr = ifaces_infos.erase(itr);
+            OS_LOGV("");
+            continue;
+        } else
+        {
+            for (auto &fn : entries)
+            {
+                std::string f = path + std::string("/") + fn;
+                //
+                auto txt = read_text_file(f);
+                //
+                if (txt.length() > 0)
+                {
+                    itr->second.insert(std::pair<std::string, std::string>(fn, txt));
+                }
+            }
+            //
+            ++itr;
+        }
+    }
+
+    return 0;
 }

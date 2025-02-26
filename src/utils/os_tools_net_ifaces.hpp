@@ -125,4 +125,6 @@ class CppGetIfaces
     }
 };
 
+int os_tools_iface_get_sys_info(std::unordered_map<std::string, std::unordered_map<std::string, std::string>> &ifaces_infos);
+
 #endif /* OS_TOOLS_NET_IFACES_HPP */

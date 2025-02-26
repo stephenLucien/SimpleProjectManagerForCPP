@@ -74,6 +74,7 @@ int os_get_available_ram(int update = 1);
 
 
 #ifdef __cplusplus
+    #include <list>
     #include <string>
     #include <unordered_map>
 
@@ -97,6 +98,8 @@ static inline std::string read_text_file(const std::string &path, const std::str
 std::string os_get_meminfo_unit();
 
 int os_get_meminfo(std::unordered_map<std::string, size_t> &infos, int update = 0);
+
+int os_get_dir_entries(const std::string &path, std::list<std::string> &entries, int d_type = -1);
 
 #endif
 

@@ -5,6 +5,7 @@
 
 //
 #include <cxxabi.h>
+#include <dirent.h>
 #include <execinfo.h>
 #include <signal.h>
 #include <string.h>
@@ -507,4 +508,102 @@ int os_get_available_ram(int update)
         MemFree = m_meminfo["MemFree"];
     }
     return SReclaimable + Inactive_file + MemFree;
+}
+
+int os_get_dir_entries(const std::string &path, std::list<std::string> &entries, int d_type)
+{
+    int ret = -1;
+    //
+    entries.clear();
+    //
+    CPP_OPENDIR(dir, path.c_str());
+    if (!dir)
+    {
+        OS_LOGE("");
+        return ret;
+    }
+    ret = 0;
+    do
+    {
+        auto entry = readdir(dir);
+        if (!entry)
+        {
+            break;
+        }
+        // OS_LOGV("type=%d,name=%s", entry->d_type, entry->d_name);
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+        {
+            continue;
+        }
+        if (d_type < 0)
+        {
+            entries.push_back(entry->d_name);
+        } else if (entry->d_type == d_type)
+        {
+            entries.push_back(entry->d_name);
+        } else if (entry->d_type == DT_UNKNOWN || entry->d_type == DT_LNK)
+        {
+            std::string fp = path + std::string("/") + std::string(entry->d_name);
+            //
+            struct stat stbuf;
+            // stat follows symlinks, lstat doesn't.
+            auto tmpret = stat(fp.c_str(), &stbuf);
+            if (tmpret == 0)
+            {
+                if (0)
+                {
+                } else if (d_type == DT_FIFO)
+                {
+                    if (S_ISFIFO(stbuf.st_mode))
+                    {
+                        entries.push_back(entry->d_name);
+                    }
+                } else if (d_type == DT_CHR)
+                {
+                    if (S_ISCHR(stbuf.st_mode))
+                    {
+                        entries.push_back(entry->d_name);
+                    }
+                } else if (d_type == DT_DIR)
+                {
+                    if (S_ISDIR(stbuf.st_mode))
+                    {
+                        entries.push_back(entry->d_name);
+                    }
+                } else if (d_type == DT_BLK)
+                {
+                    if (S_ISBLK(stbuf.st_mode))
+                    {
+                        entries.push_back(entry->d_name);
+                    }
+                } else if (d_type == DT_REG)
+                {
+                    if (S_ISREG(stbuf.st_mode))
+                    {
+                        entries.push_back(entry->d_name);
+                    }
+                } else if (d_type == DT_SOCK)
+                {
+                    if (S_ISSOCK(stbuf.st_mode))
+                    {
+                        entries.push_back(entry->d_name);
+                    }
+                }
+#if 0
+                else if (d_type == DT_LNK)
+                {
+                    if (S_ISLNK(stbuf.st_mode))
+                    {
+                        entries.push_back(entry->d_name);
+                    }
+                }
+#endif
+            } else
+            {
+                OS_LOGV("stat fail, ret=%d, file:%s", tmpret, fp.c_str());
+            }
+        }
+    } while (true);
+
+    return entries.size();
 }
