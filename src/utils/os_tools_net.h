@@ -41,7 +41,7 @@ int os_net_iface_is_up(const char *iface);
 int os_net_iface_get_hwaddr(const char *iface, uint8_t mac[6]);
 //
 char *os_net_iface_get_hwaddr_str(const char *iface, char *buf, size_t bufsz, int upper_case = 0, int revert = 0);
-#define OS_NET_GET_IFACE_MAC_STR(iface) os_net_iface_get_hwaddr_str(iface, (char *)__builtin_alloca(16), 16, 0, 0)
+#define OS_NET_IFACE_GET_MAC_STR(iface) os_net_iface_get_hwaddr_str(iface, (char *)__builtin_alloca(16), 16, 0, 0)
 //
 int os_net_iface_set_hwaddr(const char *iface, uint8_t mac[6]);
 //
