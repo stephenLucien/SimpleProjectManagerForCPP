@@ -4,6 +4,7 @@
 #include "os_tools_log.h"
 #include "os_tools_net_socket.hpp"
 #include "os_tools_system.h"
+#include "utils/cstring_proc.h"
 
 //
 #include <arpa/inet.h>
@@ -26,12 +27,13 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cstddef>
 #include <cstdint>
 #include <list>
 
 
 
-int os_net_get_local_ipv4_addr(const char *iface, struct in_addr &ip4)
+int os_net_get_local_ipv4_addr(const char *iface, struct in_addr ip4)
 {
     int sa_family = AF_INET;
     //
@@ -52,6 +54,7 @@ int os_net_get_local_ipv4_addr(const char *iface, struct in_addr &ip4)
 
     if (ioctl(fd, SIOCGIFADDR, &ifr) != 0)
     {
+        OS_LOGE("ioctl SIOCGIFADDR, err: %s", strerror(errno));
         return -1;
     }
 
@@ -60,8 +63,44 @@ int os_net_get_local_ipv4_addr(const char *iface, struct in_addr &ip4)
     return 0;
 }
 
+int os_net_set_local_ipv4_addr(const char *iface, struct in_addr ip4)
+{
+    int sa_family = AF_INET;
+    //
+    CppSocket sock(sa_family, SOCK_DGRAM, 0);
+    if (!sock.isValid())
+    {
+        return -1;
+    }
+    auto fd = sock.get();
+    //
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    ifr.ifr_addr.sa_family = sa_family;
+    if (iface)
+    {
+        strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
+    }
+    //
+    // if (ioctl(fd, SIOCGIFADDR, &ifr) != 0)
+    // {
+    //     OS_LOGE("ioctl SIOCGIFADDR, err: %s", strerror(errno));
+    //     return -1;
+    // }
+    //
+    ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr = ip4;
+    //
+    if (ioctl(fd, SIOCSIFADDR, &ifr) != 0)
+    {
+        OS_LOGE("ioctl SIOCSIFADDR, err: %s", strerror(errno));
+        return -1;
+    }
 
-int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr &ip6)
+    return 0;
+}
+
+
+int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr ip6)
 {
     int sa_family = AF_INET6;
     //
@@ -81,6 +120,7 @@ int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr &ip6)
 
     if (ioctl(sock.get(), SIOCGIFADDR, &ifr) != 0)
     {
+        OS_LOGE("ioctl SIOCGIFADDR, err: %s", strerror(errno));
         return -1;
     }
 
@@ -89,6 +129,172 @@ int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr &ip6)
     return 0;
 }
 
+int os_net_set_local_ipv6_addr(const char *iface, struct in6_addr ip6)
+{
+    int sa_family = AF_INET6;
+    //
+    CppSocket sock(sa_family, SOCK_DGRAM, 0);
+    if (!sock.isValid())
+    {
+        return -1;
+    }
+    //
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    ifr.ifr_addr.sa_family = sa_family;
+    if (iface)
+    {
+        strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
+    }
+    //
+    // if (ioctl(sock.get(), SIOCGIFADDR, &ifr) != 0)
+    // {
+    //     OS_LOGE("ioctl SIOCGIFADDR, err: %s", strerror(errno));
+    //     return -1;
+    // }
+    //
+    ((struct sockaddr_in6 *)&ifr.ifr_addr)->sin6_addr = ip6;
+    //
+    if (ioctl(sock.get(), SIOCSIFADDR, &ifr) != 0)
+    {
+        OS_LOGE("ioctl SIOCSIFADDR, err: %s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+int os_net_get_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4)
+{
+    int sa_family = AF_INET;
+    //
+    CppSocket sock(sa_family, SOCK_DGRAM, 0);
+    if (!sock.isValid())
+    {
+        return -1;
+    }
+    auto fd = sock.get();
+    //
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    ifr.ifr_addr.sa_family = sa_family;
+    if (iface)
+    {
+        strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
+    }
+
+    if (ioctl(fd, SIOCGIFNETMASK, &ifr) != 0)
+    {
+        OS_LOGE("ioctl SIOCGIFNETMASK, err: %s", strerror(errno));
+        return -1;
+    }
+
+    ip4 = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+
+    return 0;
+}
+
+int os_net_set_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4)
+{
+    int sa_family = AF_INET;
+    //
+    CppSocket sock(sa_family, SOCK_DGRAM, 0);
+    if (!sock.isValid())
+    {
+        return -1;
+    }
+    auto fd = sock.get();
+    //
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    ifr.ifr_addr.sa_family = sa_family;
+    if (iface)
+    {
+        strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
+    }
+    //
+    // if (ioctl(fd, SIOCGIFNETMASK, &ifr) != 0)
+    // {
+    //     OS_LOGE("ioctl SIOCGIFNETMASK, err: %s", strerror(errno));
+    //     return -1;
+    // }
+    //
+    ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr = ip4;
+    //
+    if (ioctl(fd, SIOCSIFNETMASK, &ifr) != 0)
+    {
+        OS_LOGE("ioctl SIOCSIFNETMASK, err: %s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+int os_net_get_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4)
+{
+    int sa_family = AF_INET;
+    //
+    CppSocket sock(sa_family, SOCK_DGRAM, 0);
+    if (!sock.isValid())
+    {
+        return -1;
+    }
+    auto fd = sock.get();
+    //
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    ifr.ifr_addr.sa_family = sa_family;
+    if (iface)
+    {
+        strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
+    }
+
+    if (ioctl(fd, SIOCGIFBRDADDR, &ifr) != 0)
+    {
+        OS_LOGE("ioctl SIOCGIFBRDADDR, err: %s", strerror(errno));
+        return -1;
+    }
+
+    ip4 = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+
+    return 0;
+}
+
+int os_net_set_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4)
+{
+    int sa_family = AF_INET;
+    //
+    CppSocket sock(sa_family, SOCK_DGRAM, 0);
+    if (!sock.isValid())
+    {
+        return -1;
+    }
+    auto fd = sock.get();
+    //
+    struct ifreq ifr;
+    memset(&ifr, 0, sizeof(ifr));
+    ifr.ifr_addr.sa_family = sa_family;
+    if (iface)
+    {
+        strncpy(ifr.ifr_name, iface, IFNAMSIZ - 1);
+    }
+    //
+    // if (ioctl(fd, SIOCGIFBRDADDR, &ifr) != 0)
+    // {
+    //     OS_LOGE("ioctl SIOCGIFBRDADDR, err: %s", strerror(errno));
+    //     return -1;
+    // }
+    //
+    ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr = ip4;
+    //
+    if (ioctl(fd, SIOCSIFBRDADDR, &ifr) != 0)
+    {
+        OS_LOGE("ioctl SIOCSIFBRDADDR, err: %s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
 
 int socket_bind_to_ipv4_addr(int fd, struct in_addr ipv4_addr, uint16_t port)
 {
@@ -644,4 +850,204 @@ int os_net_check_wan6()
     int ret = os_net_ping6_ok(ipv6_str2addr(testIP6), 80, 2, 2, NULL);
 
     return ret > 0 ? 0 : -1;
+}
+
+
+int os_net_iface_get_flag(const char *iface, int *flags)
+{
+    int ret = -1;
+    //
+    if (!iface)
+    {
+        return ret;
+    }
+    //
+    CppSocket sfd(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (!sfd.isValid())
+    {
+        return ret;
+    }
+    //
+    int fd = sfd.get();
+    //
+    struct ifreq s;
+    //
+    memset(&s, 0, sizeof(s));
+    //
+    strncpy(s.ifr_name, iface, IFNAMSIZ - 1);
+    //
+    if (0 != ioctl(fd, SIOCGIFFLAGS, &s))
+    {
+        OS_LOGE("ioctl SIOCGIFFLAGS, err: %s", strerror(errno));
+        return ret;
+    }
+    if (flags)
+    {
+        *flags = s.ifr_flags;
+    }
+
+    return 0;
+}
+
+int os_net_iface_is_up(const char *iface)
+{
+    int ret = 0;
+    //
+    if (!iface)
+    {
+        return ret;
+    }
+    //
+    int flags = 0;
+    //
+    if (os_net_iface_get_flag(iface, &flags) != 0)
+    {
+        return ret;
+    }
+    OS_LOGV("flags: %d(0x%04X)", flags, flags);
+    //
+    if (flags & IFF_UP)
+    {
+        ret = 1;
+    }
+    return ret;
+}
+
+int os_net_iface_get_hwaddr(const char *iface, uint8_t mac[IFHWADDRLEN])
+{
+    int ret = -1;
+    //
+    memset(mac, 0, IFHWADDRLEN);
+    //
+    if (!iface)
+    {
+        return ret;
+    }
+    //
+    CppSocket sfd(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (!sfd.isValid())
+    {
+        return ret;
+    }
+    //
+    int fd = sfd.get();
+    //
+    struct ifreq s;
+    //
+    memset(&s, 0, sizeof(s));
+    //
+    strncpy(s.ifr_name, iface, IFNAMSIZ - 1);
+    //
+    if (0 != ioctl(fd, SIOCGIFHWADDR, &s))
+    {
+        OS_LOGE("ioctl SIOCGIFHWADDR, err: %s", strerror(errno));
+        return ret;
+    }
+    memcpy(mac, s.ifr_addr.sa_data, IFHWADDRLEN);
+
+    return 0;
+}
+
+char *os_net_iface_get_hwaddr_str(const char *iface, char *buf, size_t bufsz, int upper_case, int revert)
+{
+    if (!buf || bufsz < IFHWADDRLEN * 2)
+    {
+        return buf;
+    }
+    uint8_t mac[IFHWADDRLEN];
+    memset(buf, 0, bufsz);
+    if (os_net_iface_get_hwaddr(iface, mac) == 0)
+    {
+        if (revert)
+        {
+            r_byteArray2hexString(buf, bufsz, mac, IFHWADDRLEN, upper_case);
+        } else
+        {
+            byteArray2hexString(buf, bufsz, mac, IFHWADDRLEN, upper_case);
+        }
+    }
+    return buf;
+}
+
+int os_net_iface_set_hwaddr(const char *iface, uint8_t mac[IFHWADDRLEN])
+{
+    int ret = -1;
+    //
+    if (!iface)
+    {
+        OS_LOGE("");
+        return ret;
+    }
+    OS_LOGI("iface(%s), hw_ether=%s", iface, OS_LOG_HEXDUMP(mac, IFHWADDRLEN));
+    //
+    CppSocket sfd(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (!sfd.isValid())
+    {
+        OS_LOGE("");
+        return ret;
+    }
+    //
+    int fd = sfd.get();
+    //
+    struct ifreq s;
+    //
+    memset(&s, 0, sizeof(s));
+    //
+    strncpy(s.ifr_name, iface, IFNAMSIZ - 1);
+    //
+    if (0 != ioctl(fd, SIOCGIFHWADDR, &s))
+    {
+        OS_LOGE("ioctl SIOCGIFHWADDR, err: %s", strerror(errno));
+        return ret;
+    }
+    //
+    memcpy(s.ifr_addr.sa_data, mac, IFHWADDRLEN);
+    //
+    if (0 != ioctl(fd, SIOCSIFHWADDR, &s))
+    {
+        OS_LOGE("ioctl SIOCSIFHWADDR, err: %s", strerror(errno));
+        return ret;
+    }
+
+    return 0;
+}
+
+int os_net_iface_set_hwaddr_str(const char *iface, const char *mac_str, int revert)
+{
+    int ret = -1;
+    //
+    if (!iface || !mac_str)
+    {
+        OS_LOGE("");
+        return ret;
+    }
+    //
+    char tmpmac_str[IFHWADDRLEN * 2 + 1];
+    memset(tmpmac_str, 0, sizeof(tmpmac_str));
+    int mac_str_offset = 0;
+    //
+    for (int i = 0; i < (int)strlen(mac_str) && mac_str_offset < IFHWADDRLEN * 2; ++i)
+    {
+        if ((mac_str[i] >= '0' && mac_str[i] <= '9') || (mac_str[i] >= 'a' && mac_str[i] <= 'z') || (mac_str[i] >= 'A' && mac_str[i] <= 'Z'))
+        {
+            tmpmac_str[mac_str_offset++] = mac_str[i];
+        }
+    }
+    if (mac_str_offset != IFHWADDRLEN * 2)
+    {
+        OS_LOGE("");
+        return ret;
+    }
+    //
+    uint8_t mac[IFHWADDRLEN];
+    memset(mac, 0, sizeof(mac));
+    hexString2byteArray(mac, sizeof(mac), tmpmac_str, IFHWADDRLEN * 2);
+    if (revert)
+    {
+        revert_byte_array(mac, sizeof(mac));
+    }
+    //
+    ret = os_net_iface_set_hwaddr(iface, mac);
+
+    return ret;
 }

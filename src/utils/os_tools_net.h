@@ -94,9 +94,21 @@ static inline struct in6_addr ipv6_str2addr(const char *ip6str)
 }
 
 
-int os_net_get_local_ipv4_addr(const char *iface, struct in_addr &ip4);
+int os_net_get_local_ipv4_addr(const char *iface, struct in_addr ip4);
 
-int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr &ip6);
+int os_net_set_local_ipv4_addr(const char *iface, struct in_addr ip4);
+
+int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr ip6);
+
+int os_net_set_local_ipv6_addr(const char *iface, struct in6_addr ip6);
+
+int os_net_get_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4);
+
+int os_net_set_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4);
+
+int os_net_get_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4);
+
+int os_net_set_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4);
 
 int socket_bind_to_ipv4_addr(int fd, struct in_addr ipv4_addr, uint16_t port);
 
@@ -123,6 +135,20 @@ int os_net_ping6_ok(struct in6_addr addr, uint16_t port, int send_timeout_sec, i
 int os_net_check_wan4();
 
 int os_net_check_wan6();
+
+//
+int os_net_iface_get_flag(const char *iface, int *flags);
+//
+int os_net_iface_is_up(const char *iface);
+//
+int os_net_iface_get_hwaddr(const char *iface, uint8_t mac[6]);
+//
+char *os_net_iface_get_hwaddr_str(const char *iface, char *buf, size_t bufsz, int upper_case = 0, int revert = 0);
+#define OS_NET_GET_IFACE_MAC_STR(iface) os_net_iface_get_hwaddr_str(iface, (char *)__builtin_alloca(16), 16, 0, 0)
+//
+int os_net_iface_set_hwaddr(const char *iface, uint8_t mac[6]);
+//
+int os_net_iface_set_hwaddr_str(const char *iface, const char *mac_str, int revert = 0);
 
 #ifdef __cplusplus
 }
