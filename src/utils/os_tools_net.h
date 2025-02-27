@@ -15,100 +15,62 @@
 extern "C" {
 #endif
 
-static inline void set_invalid_ip(void *p, size_t len)
-{
-    memset(p, 0xFF, len);
-}
+void set_invalid_ip(void *p, size_t len);
 #define INVALID_IP4(ip) set_invalid_ip((void *)(ip), sizeof(struct in_addr))
 #define INVALID_IP6(ip) set_invalid_ip((void *)(ip), sizeof(struct in6_addr))
 
-static inline int is_invalid_ip(void *p, size_t len)
-{
-    uint8_t *ptr = (uint8_t *)p;
-    for (; len; --len, ++ptr)
-    {
-        if (ptr[0] != 0xFF)
-        {
-            return 1;
-        }
-    }
-    return 0;
-}
+int is_invalid_ip(void *p, size_t len);
 #define IS_INVALID_IP4(ip) is_invalid_ip((void *)(ip), sizeof(struct in_addr))
 #define IS_INVALID_IP6(ip) is_invalid_ip((void *)(ip), sizeof(struct in6_addr))
 
-static inline const char *ipv4_addr2str(struct in_addr *ip, char *buf, size_t bufsz)
-{
-    int sa_family = AF_INET;
-    //
-    memset(buf, 0, bufsz);
-    //
-    return inet_ntop(sa_family, (void *)ip, buf, bufsz);
-}
+const char *ipv4_addr2str(struct in_addr *ip, char *buf, size_t bufsz);
 #define IPV4_ADDR2STR(ip) ipv4_addr2str((struct in_addr *)(ip), (char *)__builtin_alloca(128), 128)
 
-static inline const char *ipv6_addr2str(struct in6_addr *ip6, char *buf, size_t bufsz)
-{
-    int sa_family = AF_INET6;
-    //
-    memset(buf, 0, bufsz);
-    //
-    return inet_ntop(sa_family, (void *)ip6, buf, bufsz);
-}
+const char *ipv6_addr2str(struct in6_addr *ip6, char *buf, size_t bufsz);
 #define IPV6_ADDR2STR(ip) ipv6_addr2str((struct in6_addr *)(ip), (char *)__builtin_alloca(128), 128)
 
-static inline struct in_addr ipv4_str2addr(const char *ipstr)
-{
-    struct in_addr sin_addr;
-    INVALID_IP4(&sin_addr);
-    //
-    int ret = -1;
-    //
-    if (ipstr)
-    {
-        ret = inet_pton(PF_INET, ipstr, &sin_addr);
-    }
-    if (ret < 0)
-    {
-        // err
-    }
-    return sin_addr;
-}
+struct in_addr ipv4_str2addr(const char *ipstr);
 
-static inline struct in6_addr ipv6_str2addr(const char *ip6str)
-{
-    struct in6_addr sin_addr;
-    INVALID_IP6(&sin_addr);
-    //
-    int ret = -1;
-    //
-    if (ip6str)
-    {
-        ret = inet_pton(PF_INET6, ip6str, &sin_addr);
-    }
-    if (ret < 0)
-    {
-        // err
-    }
-    return sin_addr;
-}
+struct in6_addr ipv6_str2addr(const char *ip6str);
 
+//
+int os_net_iface_get_flag(const char *iface, int *flags);
+//
+int os_net_iface_is_up(const char *iface);
+//
+int os_net_iface_get_hwaddr(const char *iface, uint8_t mac[6]);
+//
+char *os_net_iface_get_hwaddr_str(const char *iface, char *buf, size_t bufsz, int upper_case = 0, int revert = 0);
+#define OS_NET_GET_IFACE_MAC_STR(iface) os_net_iface_get_hwaddr_str(iface, (char *)__builtin_alloca(16), 16, 0, 0)
+//
+int os_net_iface_set_hwaddr(const char *iface, uint8_t mac[6]);
+//
+int os_net_iface_set_hwaddr_str(const char *iface, const char *mac_str, int revert = 0);
 
-int os_net_get_local_ipv4_addr(const char *iface, struct in_addr ip4);
+int os_net_get_local_ipv4_addr(const char *iface, struct in_addr *p_ip4);
+
+const char *os_net_get_local_ipv4_addr_str(const char *iface, char *buf, size_t bufsz);
+#define OS_NET_IFACE_GET_ADDR(iface) os_net_get_local_ipv4_addr_str(iface, (char *)__builtin_alloca(128), 128)
 
 int os_net_set_local_ipv4_addr(const char *iface, struct in_addr ip4);
 
-int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr ip6);
+int os_net_get_local_ipv4_netmask_addr(const char *iface, struct in_addr *p_ip4);
 
-int os_net_set_local_ipv6_addr(const char *iface, struct in6_addr ip6);
+const char *os_net_get_local_ipv4_netmask_addr_str(const char *iface, char *buf, size_t bufsz);
+#define OS_NET_IFACE_GET_NETMASK(iface) os_net_get_local_ipv4_netmask_addr_str(iface, (char *)__builtin_alloca(128), 128)
 
-int os_net_get_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4);
 
 int os_net_set_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4);
 
-int os_net_get_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4);
+int os_net_get_local_ipv4_broadcast_addr(const char *iface, struct in_addr *p_ip4);
+
+const char *os_net_get_local_ipv4_broadcast_addr_str(const char *iface, char *buf, size_t bufsz);
+#define OS_NET_IFACE_GET_BRADDR(iface) os_net_get_local_ipv4_broadcast_addr_str(iface, (char *)__builtin_alloca(128), 128)
+
 
 int os_net_set_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4);
+
+
 
 int socket_bind_to_ipv4_addr(int fd, struct in_addr ipv4_addr, uint16_t port);
 
@@ -136,19 +98,6 @@ int os_net_check_wan4();
 
 int os_net_check_wan6();
 
-//
-int os_net_iface_get_flag(const char *iface, int *flags);
-//
-int os_net_iface_is_up(const char *iface);
-//
-int os_net_iface_get_hwaddr(const char *iface, uint8_t mac[6]);
-//
-char *os_net_iface_get_hwaddr_str(const char *iface, char *buf, size_t bufsz, int upper_case = 0, int revert = 0);
-#define OS_NET_GET_IFACE_MAC_STR(iface) os_net_iface_get_hwaddr_str(iface, (char *)__builtin_alloca(16), 16, 0, 0)
-//
-int os_net_iface_set_hwaddr(const char *iface, uint8_t mac[6]);
-//
-int os_net_iface_set_hwaddr_str(const char *iface, const char *mac_str, int revert = 0);
 
 #ifdef __cplusplus
 }

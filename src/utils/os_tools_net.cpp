@@ -31,9 +31,280 @@
 #include <cstdint>
 #include <list>
 
+void set_invalid_ip(void *p, size_t len)
+{
+    memset(p, 0xFF, len);
+}
+
+int is_invalid_ip(void *p, size_t len)
+{
+    uint8_t *ptr = (uint8_t *)p;
+    for (; len; --len, ++ptr)
+    {
+        if (ptr[0] != 0xFF)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+const char *ipv4_addr2str(struct in_addr *ip, char *buf, size_t bufsz)
+{
+    int sa_family = AF_INET;
+    //
+    memset(buf, 0, bufsz);
+    //
+    return inet_ntop(sa_family, (void *)ip, buf, bufsz);
+}
+
+const char *ipv6_addr2str(struct in6_addr *ip6, char *buf, size_t bufsz)
+{
+    int sa_family = AF_INET6;
+    //
+    memset(buf, 0, bufsz);
+    //
+    return inet_ntop(sa_family, (void *)ip6, buf, bufsz);
+}
+
+struct in_addr ipv4_str2addr(const char *ipstr)
+{
+    struct in_addr sin_addr;
+    INVALID_IP4(&sin_addr);
+    //
+    int ret = -1;
+    //
+    if (ipstr)
+    {
+        ret = inet_pton(PF_INET, ipstr, &sin_addr);
+    }
+    if (ret < 0)
+    {
+        // err
+    }
+    return sin_addr;
+}
+
+struct in6_addr ipv6_str2addr(const char *ip6str)
+{
+    struct in6_addr sin_addr;
+    INVALID_IP6(&sin_addr);
+    //
+    int ret = -1;
+    //
+    if (ip6str)
+    {
+        ret = inet_pton(PF_INET6, ip6str, &sin_addr);
+    }
+    if (ret < 0)
+    {
+        // err
+    }
+    return sin_addr;
+}
 
 
-int os_net_get_local_ipv4_addr(const char *iface, struct in_addr ip4)
+
+int os_net_iface_get_flag(const char *iface, int *flags)
+{
+    int ret = -1;
+    //
+    if (!iface)
+    {
+        return ret;
+    }
+    //
+    CppSocket sfd(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (!sfd.isValid())
+    {
+        return ret;
+    }
+    //
+    int fd = sfd.get();
+    //
+    struct ifreq s;
+    //
+    memset(&s, 0, sizeof(s));
+    //
+    strncpy(s.ifr_name, iface, IFNAMSIZ - 1);
+    //
+    if (0 != ioctl(fd, SIOCGIFFLAGS, &s))
+    {
+        OS_LOGE("ioctl SIOCGIFFLAGS, err: %s", strerror(errno));
+        return ret;
+    }
+    if (flags)
+    {
+        *flags = s.ifr_flags;
+    }
+
+    return 0;
+}
+
+int os_net_iface_is_up(const char *iface)
+{
+    int ret = 0;
+    //
+    if (!iface)
+    {
+        return ret;
+    }
+    //
+    int flags = 0;
+    //
+    if (os_net_iface_get_flag(iface, &flags) != 0)
+    {
+        return ret;
+    }
+    OS_LOGV("flags: %d(0x%04X)", flags, flags);
+    //
+    if (flags & IFF_UP)
+    {
+        ret = 1;
+    }
+    return ret;
+}
+
+int os_net_iface_get_hwaddr(const char *iface, uint8_t mac[IFHWADDRLEN])
+{
+    int ret = -1;
+    //
+    memset(mac, 0, IFHWADDRLEN);
+    //
+    if (!iface)
+    {
+        return ret;
+    }
+    //
+    CppSocket sfd(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (!sfd.isValid())
+    {
+        return ret;
+    }
+    //
+    int fd = sfd.get();
+    //
+    struct ifreq s;
+    //
+    memset(&s, 0, sizeof(s));
+    //
+    strncpy(s.ifr_name, iface, IFNAMSIZ - 1);
+    //
+    if (0 != ioctl(fd, SIOCGIFHWADDR, &s))
+    {
+        OS_LOGE("ioctl SIOCGIFHWADDR, err: %s", strerror(errno));
+        return ret;
+    }
+    memcpy(mac, s.ifr_addr.sa_data, IFHWADDRLEN);
+
+    return 0;
+}
+
+char *os_net_iface_get_hwaddr_str(const char *iface, char *buf, size_t bufsz, int upper_case, int revert)
+{
+    if (!buf || bufsz < IFHWADDRLEN * 2)
+    {
+        return buf;
+    }
+    uint8_t mac[IFHWADDRLEN];
+    memset(buf, 0, bufsz);
+    if (os_net_iface_get_hwaddr(iface, mac) == 0)
+    {
+        if (revert)
+        {
+            r_byteArray2hexString(buf, bufsz, mac, IFHWADDRLEN, upper_case);
+        } else
+        {
+            byteArray2hexString(buf, bufsz, mac, IFHWADDRLEN, upper_case);
+        }
+    }
+    return buf;
+}
+
+int os_net_iface_set_hwaddr(const char *iface, uint8_t mac[IFHWADDRLEN])
+{
+    int ret = -1;
+    //
+    if (!iface)
+    {
+        OS_LOGE("");
+        return ret;
+    }
+    OS_LOGI("iface(%s), hw_ether=%s", iface, OS_LOG_HEXDUMP(mac, IFHWADDRLEN));
+    //
+    CppSocket sfd(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if (!sfd.isValid())
+    {
+        OS_LOGE("");
+        return ret;
+    }
+    //
+    int fd = sfd.get();
+    //
+    struct ifreq s;
+    //
+    memset(&s, 0, sizeof(s));
+    //
+    strncpy(s.ifr_name, iface, IFNAMSIZ - 1);
+    //
+    if (0 != ioctl(fd, SIOCGIFHWADDR, &s))
+    {
+        OS_LOGE("ioctl SIOCGIFHWADDR, err: %s", strerror(errno));
+        return ret;
+    }
+    //
+    memcpy(s.ifr_addr.sa_data, mac, IFHWADDRLEN);
+    //
+    if (0 != ioctl(fd, SIOCSIFHWADDR, &s))
+    {
+        OS_LOGE("ioctl SIOCSIFHWADDR, err: %s", strerror(errno));
+        return ret;
+    }
+
+    return 0;
+}
+
+int os_net_iface_set_hwaddr_str(const char *iface, const char *mac_str, int revert)
+{
+    int ret = -1;
+    //
+    if (!iface || !mac_str)
+    {
+        OS_LOGE("");
+        return ret;
+    }
+    //
+    char tmpmac_str[IFHWADDRLEN * 2 + 1];
+    memset(tmpmac_str, 0, sizeof(tmpmac_str));
+    int mac_str_offset = 0;
+    //
+    for (int i = 0; i < (int)strlen(mac_str) && mac_str_offset < IFHWADDRLEN * 2; ++i)
+    {
+        if ((mac_str[i] >= '0' && mac_str[i] <= '9') || (mac_str[i] >= 'a' && mac_str[i] <= 'z') || (mac_str[i] >= 'A' && mac_str[i] <= 'Z'))
+        {
+            tmpmac_str[mac_str_offset++] = mac_str[i];
+        }
+    }
+    if (mac_str_offset != IFHWADDRLEN * 2)
+    {
+        OS_LOGE("");
+        return ret;
+    }
+    //
+    uint8_t mac[IFHWADDRLEN];
+    memset(mac, 0, sizeof(mac));
+    hexString2byteArray(mac, sizeof(mac), tmpmac_str, IFHWADDRLEN * 2);
+    if (revert)
+    {
+        revert_byte_array(mac, sizeof(mac));
+    }
+    //
+    ret = os_net_iface_set_hwaddr(iface, mac);
+
+    return ret;
+}
+
+int os_net_get_local_ipv4_addr(const char *iface, struct in_addr *p_ip4)
 {
     int sa_family = AF_INET;
     //
@@ -58,9 +329,22 @@ int os_net_get_local_ipv4_addr(const char *iface, struct in_addr ip4)
         return -1;
     }
 
-    ip4 = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+    *p_ip4 = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
 
     return 0;
+}
+
+const char *os_net_get_local_ipv4_addr_str(const char *iface, char *buf, size_t bufsz)
+{
+    // 255.255.255.255
+    if (!buf || bufsz < 16)
+    {
+        return buf;
+    }
+    struct in_addr ip4;
+    os_net_get_local_ipv4_addr(iface, &ip4);
+    //
+    return ipv4_addr2str(&ip4, buf, bufsz);
 }
 
 int os_net_set_local_ipv4_addr(const char *iface, struct in_addr ip4)
@@ -99,8 +383,8 @@ int os_net_set_local_ipv4_addr(const char *iface, struct in_addr ip4)
     return 0;
 }
 
-
-int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr ip6)
+#if 0
+int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr *p_ip6)
 {
     int sa_family = AF_INET6;
     //
@@ -124,9 +408,22 @@ int os_net_get_local_ipv6_addr(const char *iface, struct in6_addr ip6)
         return -1;
     }
 
-    ip6 = ((struct sockaddr_in6 *)&ifr.ifr_addr)->sin6_addr;
+    *p_ip6 = ((struct sockaddr_in6 *)&ifr.ifr_addr)->sin6_addr;
 
     return 0;
+}
+
+const char *os_net_get_local_ipv6_addr_str(const char *iface, char *buf, size_t bufsz)
+{
+    // A0A1:A2A3:A4A5:A6A7:A8A9:A0A1:A2A3:A4A5
+    if (!buf || bufsz < 40)
+    {
+        return buf;
+    }
+    struct in6_addr ip6;
+    os_net_get_local_ipv6_addr(iface, &ip6);
+    //
+    return ipv6_addr2str(&ip6, buf, bufsz);
 }
 
 int os_net_set_local_ipv6_addr(const char *iface, struct in6_addr ip6)
@@ -163,8 +460,9 @@ int os_net_set_local_ipv6_addr(const char *iface, struct in6_addr ip6)
 
     return 0;
 }
+#endif
 
-int os_net_get_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4)
+int os_net_get_local_ipv4_netmask_addr(const char *iface, struct in_addr *p_ip4)
 {
     int sa_family = AF_INET;
     //
@@ -189,9 +487,23 @@ int os_net_get_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4)
         return -1;
     }
 
-    ip4 = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+    *p_ip4 = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
 
     return 0;
+}
+
+
+const char *os_net_get_local_ipv4_netmask_addr_str(const char *iface, char *buf, size_t bufsz)
+{
+    // 255.255.255.255
+    if (!buf || bufsz < 16)
+    {
+        return buf;
+    }
+    struct in_addr ip4;
+    os_net_get_local_ipv4_netmask_addr(iface, &ip4);
+    //
+    return ipv4_addr2str(&ip4, buf, bufsz);
 }
 
 int os_net_set_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4)
@@ -230,7 +542,7 @@ int os_net_set_local_ipv4_netmask_addr(const char *iface, struct in_addr ip4)
     return 0;
 }
 
-int os_net_get_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4)
+int os_net_get_local_ipv4_broadcast_addr(const char *iface, struct in_addr *p_ip4)
 {
     int sa_family = AF_INET;
     //
@@ -255,9 +567,23 @@ int os_net_get_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4)
         return -1;
     }
 
-    ip4 = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
+    *p_ip4 = ((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr;
 
     return 0;
+}
+
+
+const char *os_net_get_local_ipv4_broadcast_addr_str(const char *iface, char *buf, size_t bufsz)
+{
+    // 255.255.255.255
+    if (!buf || bufsz < 16)
+    {
+        return buf;
+    }
+    struct in_addr ip4;
+    os_net_get_local_ipv4_broadcast_addr(iface, &ip4);
+    //
+    return ipv4_addr2str(&ip4, buf, bufsz);
 }
 
 int os_net_set_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4)
@@ -850,204 +1176,4 @@ int os_net_check_wan6()
     int ret = os_net_ping6_ok(ipv6_str2addr(testIP6), 80, 2, 2, NULL);
 
     return ret > 0 ? 0 : -1;
-}
-
-
-int os_net_iface_get_flag(const char *iface, int *flags)
-{
-    int ret = -1;
-    //
-    if (!iface)
-    {
-        return ret;
-    }
-    //
-    CppSocket sfd(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (!sfd.isValid())
-    {
-        return ret;
-    }
-    //
-    int fd = sfd.get();
-    //
-    struct ifreq s;
-    //
-    memset(&s, 0, sizeof(s));
-    //
-    strncpy(s.ifr_name, iface, IFNAMSIZ - 1);
-    //
-    if (0 != ioctl(fd, SIOCGIFFLAGS, &s))
-    {
-        OS_LOGE("ioctl SIOCGIFFLAGS, err: %s", strerror(errno));
-        return ret;
-    }
-    if (flags)
-    {
-        *flags = s.ifr_flags;
-    }
-
-    return 0;
-}
-
-int os_net_iface_is_up(const char *iface)
-{
-    int ret = 0;
-    //
-    if (!iface)
-    {
-        return ret;
-    }
-    //
-    int flags = 0;
-    //
-    if (os_net_iface_get_flag(iface, &flags) != 0)
-    {
-        return ret;
-    }
-    OS_LOGV("flags: %d(0x%04X)", flags, flags);
-    //
-    if (flags & IFF_UP)
-    {
-        ret = 1;
-    }
-    return ret;
-}
-
-int os_net_iface_get_hwaddr(const char *iface, uint8_t mac[IFHWADDRLEN])
-{
-    int ret = -1;
-    //
-    memset(mac, 0, IFHWADDRLEN);
-    //
-    if (!iface)
-    {
-        return ret;
-    }
-    //
-    CppSocket sfd(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (!sfd.isValid())
-    {
-        return ret;
-    }
-    //
-    int fd = sfd.get();
-    //
-    struct ifreq s;
-    //
-    memset(&s, 0, sizeof(s));
-    //
-    strncpy(s.ifr_name, iface, IFNAMSIZ - 1);
-    //
-    if (0 != ioctl(fd, SIOCGIFHWADDR, &s))
-    {
-        OS_LOGE("ioctl SIOCGIFHWADDR, err: %s", strerror(errno));
-        return ret;
-    }
-    memcpy(mac, s.ifr_addr.sa_data, IFHWADDRLEN);
-
-    return 0;
-}
-
-char *os_net_iface_get_hwaddr_str(const char *iface, char *buf, size_t bufsz, int upper_case, int revert)
-{
-    if (!buf || bufsz < IFHWADDRLEN * 2)
-    {
-        return buf;
-    }
-    uint8_t mac[IFHWADDRLEN];
-    memset(buf, 0, bufsz);
-    if (os_net_iface_get_hwaddr(iface, mac) == 0)
-    {
-        if (revert)
-        {
-            r_byteArray2hexString(buf, bufsz, mac, IFHWADDRLEN, upper_case);
-        } else
-        {
-            byteArray2hexString(buf, bufsz, mac, IFHWADDRLEN, upper_case);
-        }
-    }
-    return buf;
-}
-
-int os_net_iface_set_hwaddr(const char *iface, uint8_t mac[IFHWADDRLEN])
-{
-    int ret = -1;
-    //
-    if (!iface)
-    {
-        OS_LOGE("");
-        return ret;
-    }
-    OS_LOGI("iface(%s), hw_ether=%s", iface, OS_LOG_HEXDUMP(mac, IFHWADDRLEN));
-    //
-    CppSocket sfd(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-    if (!sfd.isValid())
-    {
-        OS_LOGE("");
-        return ret;
-    }
-    //
-    int fd = sfd.get();
-    //
-    struct ifreq s;
-    //
-    memset(&s, 0, sizeof(s));
-    //
-    strncpy(s.ifr_name, iface, IFNAMSIZ - 1);
-    //
-    if (0 != ioctl(fd, SIOCGIFHWADDR, &s))
-    {
-        OS_LOGE("ioctl SIOCGIFHWADDR, err: %s", strerror(errno));
-        return ret;
-    }
-    //
-    memcpy(s.ifr_addr.sa_data, mac, IFHWADDRLEN);
-    //
-    if (0 != ioctl(fd, SIOCSIFHWADDR, &s))
-    {
-        OS_LOGE("ioctl SIOCSIFHWADDR, err: %s", strerror(errno));
-        return ret;
-    }
-
-    return 0;
-}
-
-int os_net_iface_set_hwaddr_str(const char *iface, const char *mac_str, int revert)
-{
-    int ret = -1;
-    //
-    if (!iface || !mac_str)
-    {
-        OS_LOGE("");
-        return ret;
-    }
-    //
-    char tmpmac_str[IFHWADDRLEN * 2 + 1];
-    memset(tmpmac_str, 0, sizeof(tmpmac_str));
-    int mac_str_offset = 0;
-    //
-    for (int i = 0; i < (int)strlen(mac_str) && mac_str_offset < IFHWADDRLEN * 2; ++i)
-    {
-        if ((mac_str[i] >= '0' && mac_str[i] <= '9') || (mac_str[i] >= 'a' && mac_str[i] <= 'z') || (mac_str[i] >= 'A' && mac_str[i] <= 'Z'))
-        {
-            tmpmac_str[mac_str_offset++] = mac_str[i];
-        }
-    }
-    if (mac_str_offset != IFHWADDRLEN * 2)
-    {
-        OS_LOGE("");
-        return ret;
-    }
-    //
-    uint8_t mac[IFHWADDRLEN];
-    memset(mac, 0, sizeof(mac));
-    hexString2byteArray(mac, sizeof(mac), tmpmac_str, IFHWADDRLEN * 2);
-    if (revert)
-    {
-        revert_byte_array(mac, sizeof(mac));
-    }
-    //
-    ret = os_net_iface_set_hwaddr(iface, mac);
-
-    return ret;
 }
