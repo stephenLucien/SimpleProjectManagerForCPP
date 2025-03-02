@@ -4,7 +4,7 @@
 #include "os_tools_log.h"
 #include "os_tools_net_socket.hpp"
 #include "os_tools_system.h"
-#include "utils/cstring_proc.h"
+#include "cstring_proc.h"
 
 //
 #include <arpa/inet.h>

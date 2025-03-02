@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cstddef>
 
 //
 #include <openssl/aes.h>
@@ -17,7 +18,6 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>
-#include <cstddef>
 #include "openssl/err.h"
 
 

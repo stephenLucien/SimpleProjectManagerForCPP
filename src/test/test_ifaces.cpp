@@ -54,11 +54,11 @@ int test_ifaces_mac(int reason, void* userdata)
 {
     int ret = -1;
     //
-    OS_LOGD("iface(%s): hw_ether=%s", m_iface.c_str(), OS_NET_GET_IFACE_MAC_STR(m_iface.c_str()));
+    OS_LOGD("iface(%s): hw_ether=%s", m_iface.c_str(), OS_NET_IFACE_GET_MAC_STR(m_iface.c_str()));
     //
     ret = os_net_iface_set_hwaddr_str(m_iface.c_str(), "12:34:56:78:90:13");
     //
-    OS_LOGD("iface(%s): hw_ether=%s", m_iface.c_str(), OS_NET_GET_IFACE_MAC_STR(m_iface.c_str()));
+    OS_LOGD("iface(%s): hw_ether=%s", m_iface.c_str(), OS_NET_IFACE_GET_MAC_STR(m_iface.c_str()));
     //
     OS_LOGD("iface(%s): up=%d", m_iface.c_str(), os_net_iface_is_up(m_iface.c_str()));
     //

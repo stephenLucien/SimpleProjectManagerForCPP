@@ -24,8 +24,8 @@
 
 //
 #include "cpp_helper/cpphelper_os.hpp"
-#include "utils/cstring_proc.h"
-#include "utils/pthread_class.hpp"
+#include "cstring_proc.h"
+#include "pthread_class.hpp"
 
 //
 int m_app_running = 1;

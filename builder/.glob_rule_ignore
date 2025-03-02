@@ -33,6 +33,9 @@ echo ../src/qrcode/qrcode_content_wifi.cpp
 echo ../src/qrcode/qrcode.cpp
 echo ../src/test/test_qrcode.cpp
 
+# depends on libalsa
+echo ../src/alsa_user/pcm_player.cpp
+
 # buffer manager
 # echo ../src/manager/buffer_manager.cpp
 # echo ../src/test/test_buffer_manager.cpp

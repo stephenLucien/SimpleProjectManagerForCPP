@@ -22,7 +22,7 @@
 #define SNTP_CLIENT_MAX_TIMELAPSE_MS (3000)
 
 #if defined(SNTP_CLIENT_CHECK_TIMELAPSE) && SNTP_CLIENT_CHECK_TIMELAPSE != 0
-    #include "utils/os_tools_time.h"
+    #include "os_tools_time.h"
 #endif
 
 /**

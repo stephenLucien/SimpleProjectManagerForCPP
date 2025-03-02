@@ -4,7 +4,7 @@
 #include <getopt.h>
 #include <cstddef>
 #include <vector>
-#include "utils/os_tools_log.h"
+#include "os_tools_log.h"
 
 
 int arg_parser(const ArgumentData* arg_datas, int arg_datas_cnt, int argc, char* argv[])
