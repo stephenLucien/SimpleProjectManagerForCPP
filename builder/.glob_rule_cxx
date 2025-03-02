@@ -1,3 +1,4 @@
 #!/bin/bash
 find ../src -iname '*.cpp'
+find ../src -iname '*.cxx'
 find ../src -iname '*.cc'

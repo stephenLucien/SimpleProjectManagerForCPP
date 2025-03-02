@@ -5,9 +5,19 @@ find ../src -name '*.cpP'
 find ../src -name '*.cPP'
 find ../src -name '*.CpP'
 find ../src -name '*.CPp'
+
+find ../src -name '*.Cxx'
+find ../src -name '*.cXx'
+find ../src -name '*.cxX'
+find ../src -name '*.cXX'
+find ../src -name '*.CxX'
+find ../src -name '*.CXx'
+find ../src -name '*.CXX'
+
 find ../src -name '*.cC'
 find ../src -name '*.Cc'
 find ../src -name '*.CC'
+
 # uncomment the following line to disable log redirection to file
 echo "../src/utils/os_tools_log_redirect.cpp"
 

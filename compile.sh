@@ -79,7 +79,7 @@ EOF
     cat >>${CLANGD_CONF} <<EOF
 ---
 If:                               
-  PathMatch: .*\.(h|hpp|cc|cpp|CPP)    
+  PathMatch: .*\.(h|H|hpp|hxx|cc|cpp|CPP|cxx)    
 Diagnostics:      
   #ClangTidyChecks: true       
   ClangTidy:             
