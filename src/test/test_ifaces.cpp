@@ -5,10 +5,11 @@
 #include "manager/cmdline_argument_manager.h"
 #include "manager/test_manager.h"
 #include "utils/os_tools_net_ifaces.hpp"
+#include "utils/os_tools_net_socket.hpp"
 #include "utils/os_tools_system.h"
 
 
-int test_ifaces_dump(int reason, void* userdata)
+int test_ifaces_dump(int reason, void *userdata)
 {
     int ret = -1;
     //
@@ -35,7 +36,7 @@ REG_CMDLINE_ARG_PARSE_FUNC(1, 'I', "iface", 1, {
     }
 })
 
-int test_dummy_iface_create(int reason, void* userdata)
+int test_dummy_iface_create(int reason, void *userdata)
 {
     int ret = -1;
     //
@@ -50,7 +51,7 @@ int test_dummy_iface_create(int reason, void* userdata)
 }
 REG_TEST_FUNC(test_dummy_iface_create, test_dummy_iface_create, NULL)
 
-int test_ifaces_mac(int reason, void* userdata)
+int test_ifaces_mac(int reason, void *userdata)
 {
     int ret = -1;
     //
@@ -71,3 +72,14 @@ int test_ifaces_mac(int reason, void* userdata)
     return ret;
 }
 REG_TEST_FUNC(test_ifaces_mac, test_ifaces_mac, NULL)
+
+
+int get_gatewayip_test(int reason, void *userdata)
+{
+    int ret = -1;
+    //
+    OS_LOGI("gw:%s", OS_NET_IFACE_GET_GWADDR(NULL));
+
+    return ret;
+}
+REG_TEST_FUNC(get_gatewayip_test, get_gatewayip_test, NULL)
