@@ -1,13 +1,29 @@
 #!/bin/bash
 SCRIPT_DIR=$(dirname $(realpath ${BASH_SOURCE}))
 
-export SRC_DIR=src
-export BUILD_DIR=build
-export TARGET_NAME=exec
-
+clear
+#
 TARGET_HOST=${TARGET_HOST=host_asan}
 # toolchain env
 source ${SCRIPT_DIR}/toolchain/toolchain_${TARGET_HOST}.sh
+
+cd ${SCRIPT_DIR}
+export SRC_DIR=${SRC_DIR=src}
+export BUILD_DIR=${BUILD_DIR=build_${TARGET_HOST}}
+export TARGET_NAME=${TARGET_NAME=exec}
+
+# qemu to run cross-compiled program
+if test "$(uname -m)" != "${SYSTEM_PROCESSOR}"; then
+    QEMU_RUN_PROGRAM="qemu-${SYSTEM_PROCESSOR}"
+    which ${QEMU_RUN_PROGRAM} >/dev/null 2>&1
+    if test $? -eq 0; then
+        if test -z "${SYSROOT}"; then
+            QEMU_RUN_CMD="${QEMU_RUN_PROGRAM}"
+        else
+            QEMU_RUN_CMD="${QEMU_RUN_PROGRAM} -L ${SYSROOT}"
+        fi
+    fi
+fi
 
 function regen_mk() {
     rm -rf ${BUILD_DIR}
@@ -136,9 +152,11 @@ function rebuild_target() {
 
 function run_target() {
     echo ""
-    CMD="${BUILD_DIR}/${TARGET_NAME}"
-    echo "run: $CMD"
-    eval $CMD
+    CMD="${QEMU_RUN_CMD} ${BUILD_DIR}/${TARGET_NAME}"
+    echo "run:"
+    echo $CMD $@
+    # eval $CMD
+    $CMD $@
 }
 
 function place_time_cursor() {
@@ -179,7 +197,8 @@ build)
     dump_time
     ;;
 run)
-    run_target
+    shift 1
+    run_target $@
     ;;
 *)
     place_time_cursor $0 $@
@@ -189,7 +208,7 @@ run)
     rebuild_target
     dump_time
     echo ""
-    run_target
+    run_target $@
     dump_time
     ;;
 esac

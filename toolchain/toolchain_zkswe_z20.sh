@@ -17,6 +17,7 @@ CFLAGS="${CFLAGS} -fno-omit-frame-pointer"
 CFLAGS="${CFLAGS} -save-temps=obj"
 CFLAGS="${CFLAGS} -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-variable -Wno-unused-parameter -Wno-unused-label -Wno-unused-function"
 CFLAGS="${CFLAGS} -O2"
+# CFLAGS="${CFLAGS} -static"
 
 CXXFLAGS=${CXXFLAGS="${CFLAGS} -fexceptions"}
 
@@ -26,3 +27,4 @@ LIBS=""
 
 EXPORT_TOOLCHAIN=true
 source ${CUR_DIR}/env_template_for_toolchain.sh
+
