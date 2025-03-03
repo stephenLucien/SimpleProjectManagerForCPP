@@ -20,8 +20,19 @@ static int test_printf(int reason, void* userdata)
     }
     return 0;
 }
-
 REG_TEST_FUNC(test_printf, test_printf, NULL)
+
+static int test_printf_float(int reason, void* userdata)
+{
+    double df = 12345.0123456789;
+    float  f  = df;
+    OS_LOGD("%f %f", df, f);
+    OS_LOGD("%.2f %.2f", df, f);
+    OS_LOGD("%.6f %.6f", df, f);
+
+    return 0;
+}
+REG_TEST_FUNC(test_printf_float, test_printf_float, NULL)
 
 class TypeIdDumper
 {

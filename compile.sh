@@ -5,10 +5,9 @@ export SRC_DIR=src
 export BUILD_DIR=build
 export TARGET_NAME=exec
 
-# export CC=clang
-# export CXX=clang++
-export CC=gcc
-export CXX=g++
+TARGET_HOST=${TARGET_HOST=host_asan}
+# toolchain env
+source ${SCRIPT_DIR}/toolchain/toolchain_${TARGET_HOST}.sh
 
 function regen_mk() {
     rm -rf ${BUILD_DIR}

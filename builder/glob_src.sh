@@ -153,19 +153,19 @@ EOF
 -include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${INIT_MK})
 
 # COM_COMPILE_FLAGS += -Os
-COM_COMPILE_FLAGS += -fPIC
-COM_COMPILE_FLAGS += -save-temps=obj
-COM_COMPILE_FLAGS += -fdata-sections -ffunction-sections
-COM_COMPILE_FLAGS += -fno-omit-frame-pointer
+# COM_COMPILE_FLAGS += -fPIC
+# COM_COMPILE_FLAGS += -save-temps=obj
+# COM_COMPILE_FLAGS += -fdata-sections -ffunction-sections
+# COM_COMPILE_FLAGS += -fno-omit-frame-pointer
 # COM_COMPILE_FLAGS += -fstack-protector
 # COM_COMPILE_FLAGS += -fno-caller-saves 
 # COM_COMPILE_FLAGS += -fmessage-length=0
-COM_COMPILE_FLAGS += -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-variable -Wno-unused-parameter -Wno-unused-label -Wno-unused-function
+# COM_COMPILE_FLAGS += -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-variable -Wno-unused-parameter -Wno-unused-label -Wno-unused-function
 
-CFLAGS += \${COM_COMPILE_FLAGS}
-CXXFLAGS += \${COM_COMPILE_FLAGS} -fexceptions
+# CFLAGS += \${COM_COMPILE_FLAGS}
+# CXXFLAGS += \${COM_COMPILE_FLAGS} -fexceptions
 
-LDFLAGS += -Wl,--gc-sections
+# LDFLAGS += -Wl,--gc-sections
 
 TARGET = ${TARGET_NAME}
 
