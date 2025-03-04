@@ -51,14 +51,14 @@ class CppSocket
     static int bind_to_device(int fd, const char *iface_name);
     //
     int bind_to_device(const char *iface_name);
-
-    static int set_send_timeout(int sd, int timeout_sec);
     //
-    int set_send_timeout(int timeout_sec);
-
-    static int set_recv_timeout(int sd, int timeout_sec);
+    static int set_send_timeout(int sd, int timeout_sec, int timeout_us);
     //
-    int set_recv_timeout(int timeout_sec);
+    int set_send_timeout(int timeout_sec, int timeout_us = 0);
+    //
+    static int set_recv_timeout(int sd, int timeout_sec, int timeout_us);
+    //
+    int set_recv_timeout(int timeout_sec, int timeout_us = 0);
 
 
     static int set_reuse_addr(int sd, bool reuse);

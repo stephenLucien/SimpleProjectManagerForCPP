@@ -196,31 +196,47 @@ int CppSocket::bind_to_device(const char *iface_name)
 {
     return bind_to_device(sd, iface_name);
 }
-int CppSocket::set_send_timeout(int sd, int timeout_sec)
+int CppSocket::set_send_timeout(int sd, int timeout_sec, int timeout_us)
 {
     struct timeval tv;
-    //
-    tv.tv_sec  = timeout_sec;
+    tv.tv_sec  = 0;
     tv.tv_usec = 0;
+    //
+    if (timeout_sec >= 0)
+    {
+        tv.tv_sec = timeout_sec;
+    }
+    if (timeout_us >= 0)
+    {
+        tv.tv_usec = timeout_us;
+    }
     //
     return setsockopt(sd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, sizeof(tv));
 }
-int CppSocket::set_send_timeout(int timeout_sec)
+int CppSocket::set_send_timeout(int timeout_sec, int timeout_us)
 {
-    return set_send_timeout(sd, timeout_sec);
+    return set_send_timeout(sd, timeout_sec, timeout_us);
 }
-int CppSocket::set_recv_timeout(int sd, int timeout_sec)
+int CppSocket::set_recv_timeout(int sd, int timeout_sec, int timeout_us)
 {
     struct timeval tv;
-    //
-    tv.tv_sec  = timeout_sec;
+    tv.tv_sec  = 0;
     tv.tv_usec = 0;
+    //
+    if (timeout_sec >= 0)
+    {
+        tv.tv_sec = timeout_sec;
+    }
+    if (timeout_us >= 0)
+    {
+        tv.tv_usec = timeout_us;
+    }
     //
     return setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv));
 }
-int CppSocket::set_recv_timeout(int timeout_sec)
+int CppSocket::set_recv_timeout(int timeout_sec, int timeout_us)
 {
-    return set_recv_timeout(sd, timeout_sec);
+    return set_recv_timeout(sd, timeout_sec, timeout_us);
 }
 int CppSocket::set_reuse_addr(int sd, bool reuse)
 {

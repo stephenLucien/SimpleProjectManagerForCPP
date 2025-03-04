@@ -130,7 +130,7 @@ static int parseRoutes(struct nlmsghdr *nlHdr, struct route_info *rtInfo)
 
 
 // meat
-int os_net_iface_get_ipv4_gwaddr(const char *iface, struct in_addr *p_ip4, int recv_timeout_sec, int send_timeout_sec)
+int os_net_iface_get_ipv4_gwaddr(const char *iface, struct in_addr *p_ip4, int recv_timeout_ms, int send_timeout_ms)
 {
     int ret = -1;
 
@@ -151,13 +151,13 @@ int os_net_iface_get_ipv4_gwaddr(const char *iface, struct in_addr *p_ip4, int r
             return ret;
         }
     }
-    if (recv_timeout_sec > 0)
+    if (recv_timeout_ms > 0)
     {
-        sockObj.set_recv_timeout(recv_timeout_sec);
+        sockObj.set_recv_timeout(recv_timeout_ms / 1000, (recv_timeout_ms % 1000) * 1000);
     }
-    if (send_timeout_sec > 0)
+    if (send_timeout_ms > 0)
     {
-        sockObj.set_send_timeout(send_timeout_sec);
+        sockObj.set_send_timeout(send_timeout_ms / 1000, (send_timeout_ms % 1000) * 1000);
     }
 
     //
@@ -246,7 +246,7 @@ char *os_net_iface_get_ipv4_gwaddr_str(const char *iface, char *buf, size_t bufs
 
     struct in_addr ip4, *p_ip4 = &ip4;
     //
-    if (os_net_iface_get_ipv4_gwaddr(iface, p_ip4, 2, 2) > 0)
+    if (os_net_iface_get_ipv4_gwaddr(iface, p_ip4, 500, 500) > 0)
     {
         ipv4_addr2str(p_ip4, buf, bufsz);
     }
