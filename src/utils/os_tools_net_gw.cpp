@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cerrno>
+#include <cstdint>
 
 
 #define BUFSIZE 8192
@@ -129,7 +130,7 @@ static int parseRoutes(struct nlmsghdr *nlHdr, struct route_info *rtInfo)
 
 
 // meat
-int os_net_iface_get_ipv4_gwaddr(const char *iface, struct in_addr *p_ip4)
+int os_net_iface_get_ipv4_gwaddr(const char *iface, struct in_addr *p_ip4, int recv_timeout_sec, int send_timeout_sec)
 {
     int ret = -1;
 
@@ -149,6 +150,14 @@ int os_net_iface_get_ipv4_gwaddr(const char *iface, struct in_addr *p_ip4)
             OS_LOGE("");
             return ret;
         }
+    }
+    if (recv_timeout_sec > 0)
+    {
+        sockObj.set_recv_timeout(recv_timeout_sec);
+    }
+    if (send_timeout_sec > 0)
+    {
+        sockObj.set_send_timeout(send_timeout_sec);
     }
 
     //
@@ -205,9 +214,10 @@ int os_net_iface_get_ipv4_gwaddr(const char *iface, struct in_addr *p_ip4)
         {
             continue;  // don't check route_info if it has not been set up
         }
+        // OS_LOGV("dstAddr=%s", IPV4_ADDR2STR(&route_info.dstAddr));
 
         // Check if default gateway
-        if (strstr((char *)inet_ntoa(route_info.dstAddr), "0.0.0.0"))
+        if (route_info.dstAddr.s_addr == 0)
         {
             if (p_ip4)
             {
@@ -236,7 +246,7 @@ char *os_net_iface_get_ipv4_gwaddr_str(const char *iface, char *buf, size_t bufs
 
     struct in_addr ip4, *p_ip4 = &ip4;
     //
-    if (os_net_iface_get_ipv4_gwaddr(iface, p_ip4) > 0)
+    if (os_net_iface_get_ipv4_gwaddr(iface, p_ip4, 2, 2) > 0)
     {
         ipv4_addr2str(p_ip4, buf, bufsz);
     }

@@ -78,7 +78,7 @@ int get_gatewayip_test(int reason, void *userdata)
 {
     int ret = -1;
     //
-    OS_LOGI("gw:%s", OS_NET_IFACE_GET_GWADDR(NULL));
+    OS_LOGI("gw:%s", OS_NET_IFACE_GET_GWADDR("enp2s0"));
 
     return ret;
 }

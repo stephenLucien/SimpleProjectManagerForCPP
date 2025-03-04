@@ -71,7 +71,7 @@ const char *os_net_get_local_ipv4_broadcast_addr_str(const char *iface, char *bu
 int os_net_set_local_ipv4_broadcast_addr(const char *iface, struct in_addr ip4);
 
 
-int os_net_iface_get_ipv4_gwaddr(const char *iface, struct in_addr *p_ip4);
+int os_net_iface_get_ipv4_gwaddr(const char *iface, struct in_addr *p_ip4, int recv_timeout_sec = -1, int send_timeout_sec = -1);
 
 char *os_net_iface_get_ipv4_gwaddr_str(const char *iface, char *buf, size_t bufsz);
 #define OS_NET_IFACE_GET_GWADDR(iface) os_net_iface_get_ipv4_gwaddr_str(iface, (char *)__builtin_alloca(128), 128)
