@@ -1,4 +1,6 @@
 .cache
+build
+build_*
 .clangd
 compile_commands.json
-build
+program.log

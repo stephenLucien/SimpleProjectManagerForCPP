@@ -1,36 +1,20 @@
+# $(call get_relative_path, rpathf)
+# $(call get_absolute_path, apathf)
+$(call get_relative_dir, rpathd)
+# $(call get_absolute_dir, apathd)
 
-# standard
-CFLAGS += -std=gnu11
-CXXFLAGS += -std=gnu++14
-
-# optimize level
-CFLAGS += -O0 -g
-CXXFLAGS += -O0 -g
+-include ${rpathd}/compile_flags_begin.mk
 
 
-# address sanitizer
-CFLAGS += -fsanitize=address
-CXXFLAGS += -fsanitize=address
+# -include ${rpathd}/lib_nanogui.mk
+# -include ${rpathd}/lib_opencv4.mk
+# -include ${rpathd}/lib_protobuf.mk
+# -include ${rpathd}/lib_glew.mk
+# -include ${rpathd}/lib_qrencode.mk
+-include ${rpathd}/lib_curl.mk
+-include ${rpathd}/lib_openssl.mk
 
-# LDFLAGS += -Wl,--as-needed
-# LDFLAGS += -Wl,--allow-shlib-undefined
+# -include ${rpathd}/lib_alsa.mk
+# -include ${rpathd}/lib_sqlite3.mk
 
-LIBS += -lasan
-
-# pkgconf --list-all | awk '{print $1}' | grep opencv
-# $(call pkgconf_add, opencv4)
-# $(call pkgconf_add, protobuf)
-# $(call pkgconf_add, glew)
-
-# add libcurl
-# $(call pkgconf_add, libcurl)
-
-# add openssl
-# $(call pkgconf_add, openssl)
-
-# libqrencode
-# $(call pkgconf_add, libqrencode)
-
-# 
-LIBS += -lstdc++
-LIBS += -lpthread
+-include ${rpathd}/compile_flags_end.mk
