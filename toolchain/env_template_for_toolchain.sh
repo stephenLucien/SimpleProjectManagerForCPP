@@ -1,46 +1,59 @@
 #!/bin/bash
-CUR_DIR=$(dirname $(realpath ${BASH_SOURCE}))
-
-# FIXME: toolchain directory
-TOOLCHAIN_DIR=${TOOLCHAIN_DIR=${CUR_DIR}}
 
 # FIXME: gcc PATH
-TOOLCHAIN_BIN_DIR=${TOOLCHAIN_BIN_DIR=${TOOLCHAIN_DIR}/bin}
-export PATH="${TOOLCHAIN_BIN_DIR}:$PATH"
+TOOLCHAIN_BIN_DIR=${TOOLCHAIN_BIN_DIR=$(dirname $(which gcc))}
+if test -d "${TOOLCHAIN_BIN_DIR}"; then
+    export PATH="${TOOLCHAIN_BIN_DIR}:$PATH"
+fi
 
 # FIXME: cross-compile
-TOOLCHAIN_TRIPLE=${TOOLCHAIN_TRIPLE=arm-linux-gnueabihf}
+TOOLCHAIN_TRIPLE=${TOOLCHAIN_TRIPLE=""}
 if test -n "${TOOLCHAIN_TRIPLE}"; then
     export CROSS_COMPILE="${TOOLCHAIN_TRIPLE}-"
 fi
+SYSROOT_DEFAULT=$(${CROSS_COMPILE}gcc --print-sysroot | sed -e 's/\\/\//g')
 
 # FIXME:
-export SYSROOT=${SYSROOT=$(${CROSS_COMPILE}gcc --print-sysroot)}
+SYSROOT=${SYSROOT=${SYSROOT_DEFAULT}}
+#
+if test -z "${SYSROOT}"; then
+    SYSROOT=$SYSROOT_DEFAULT
+fi
+export SYSROOT
+
+if test "${SYSROOT}" = "${SYSROOT_DEFAULT}"; then
+    echo "" >/dev/null
+elif test -z "${SYSROOT}"; then
+    echo "" >/dev/null
+elif test -z "${SYSROOT_DEFAULT}"; then
+    echo "" >/dev/null
+    SYSROOT_CFLAGS="--sysroot=${SYSROOT}"
+elif test "$(realpath ${SYSROOT})" = "$(realpath ${SYSROOT_DEFAULT})"; then
+    echo "" >/dev/null
+else
+    SYSROOT_CFLAGS="--sysroot=${SYSROOT}"
+fi
+
 # FIXME:
-export SYSTEM_NAME=${SYSTEM_NAME=Linux}
+export SYSTEM_NAME=${SYSTEM_NAME=$(uname)}
 # FIXME:
-export SYSTEM_PROCESSOR=${SYSTEM_PROCESSOR=arm}
+export SYSTEM_PROCESSOR=${SYSTEM_PROCESSOR=$(uname -m)}
 #
 EXPORT_TOOLCHAIN=${EXPORT_TOOLCHAIN=true}
 
 # FIXME:
-CFLAGS=${CFLAGS="-mfloat-abi=hard -mfpu=vfp"}
-# CFLAGS="${CFLAGS} -fPIC"
-# CFLAGS="${CFLAGS} -fdata-sections -ffunction-sections"
-# CFLAGS="${CFLAGS} -fno-omit-frame-pointer"
-# CFLAGS="${CFLAGS} -Os"
-# CFLAGS="${CFLAGS} -pipe"
-# CFLAGS="${CFLAGS} -save-temps=obj"
-# CFLAGS="${CFLAGS} -Wno-unused-result -Wno-unused-but-set-variable -Wno-unused-but-set-parameter -Wno-unused-variable -Wno-unused-parameter -Wno-unused-label -Wno-unused-function"
+CFLAGS=${CFLAGS=""}
+CFLAGS="${CFLAGS} ${SYSROOT_CFLAGS}"
 export CFLAGS
 
-CXXFLAGS=${CXXFLAGS="${CFLAGS} -fexceptions"}
+CXXFLAGS=${CXXFLAGS=""}
+CXXFLAGS="${CXXFLAGS} ${SYSROOT_CFLAGS}"
 export CXXFLAGS
 
 CPPFLAGS=${CPPFLAGS=""}
 export CPPFLAGS
 
-LDFLAGS=${LDFLAGS="-Wl,--gc-sections"}
+LDFLAGS=${LDFLAGS=""}
 export LDFLAGS
 
 LIBS=${LIBS=""}
