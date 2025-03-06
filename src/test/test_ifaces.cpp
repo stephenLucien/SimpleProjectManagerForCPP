@@ -74,11 +74,69 @@ int test_ifaces_mac(int reason, void *userdata)
 REG_TEST_FUNC(test_ifaces_mac, test_ifaces_mac, NULL)
 
 
+
+static int iface_lan_ok(const char *iface, int timeout_sec = 1, int b_print_log = 0)
+{
+    std::string gw = OS_NET_IFACE_GET_GWADDR(iface);
+    //
+    OS_LOGI("gw:%s", gw.c_str());
+    //
+    if (gw.empty())
+    {
+        return 0;
+    }
+    auto addr = gw.c_str();
+    //
+    auto ip4 = ipv4_str2addr(addr);
+
+    // ICMP ping
+    if (os_net_icmp_ping4(ip4, timeout_sec, timeout_sec, iface) == 0)
+    {
+        return 1;
+    }
+    // web
+    if (os_net_tcp_ping4(ip4, 80, timeout_sec, timeout_sec, iface) == 0 || os_net_tcp_ping4(ip4, 443, timeout_sec, timeout_sec, iface) == 0
+        || os_net_tcp_ping4(ip4, 8080, timeout_sec, timeout_sec, iface) == 0)
+    {
+        return 2;
+    }
+
+    // dns port
+    if (os_net_tcp_ping4(ip4, 53, timeout_sec, timeout_sec, iface) == 0 || os_net_tcp_ping4(ip4, 5353, timeout_sec, timeout_sec, iface) == 0)
+    {
+        return 4;
+    }
+
+    // ntp port
+    if (os_net_tcp_ping4(ip4, 123, timeout_sec, timeout_sec, iface) == 0)
+    {
+        return 8;
+    }
+
+    // remote access port: ssh telnet vnc
+    if (os_net_tcp_ping4(ip4, 22, timeout_sec, timeout_sec, iface) == 0 || os_net_tcp_ping4(ip4, 23, timeout_sec, timeout_sec, iface) == 0
+        || os_net_tcp_ping4(ip4, 5900, timeout_sec, timeout_sec, iface) == 0)
+    {
+        return 16;
+    }
+
+    // nfs: ftp_data ftp_file tftp nfs smb
+    if (os_net_tcp_ping4(ip4, 20, timeout_sec, timeout_sec, iface) == 0 || os_net_tcp_ping4(ip4, 21, timeout_sec, timeout_sec, iface) == 0
+        || os_net_tcp_ping4(ip4, 69, timeout_sec, timeout_sec, iface) == 0 || os_net_tcp_ping4(ip4, 2049, timeout_sec, timeout_sec, iface) == 0
+        || os_net_tcp_ping4(ip4, 445, timeout_sec, timeout_sec, iface) == 0)
+    {
+        return 32;
+    }
+
+    return 0;
+}
+
 int get_gatewayip_test(int reason, void *userdata)
 {
     int ret = -1;
     //
-    OS_LOGI("gw:%s", OS_NET_IFACE_GET_GWADDR("enp2s0"));
+    ret = iface_lan_ok(NULL);
+    //
 
     return ret;
 }
