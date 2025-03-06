@@ -1,8 +1,7 @@
 #!/bin/bash
 CUR_DIR=$(dirname $(realpath ${BASH_SOURCE}))
 
-TOOLCHAIN_DIR=/home/li/work/z20/toolchain
-TOOLCHAIN_BIN_DIR=${TOOLCHAIN_DIR}/bin
+TOOLCHAIN_BIN_DIR=/home/li/work/z20/toolchain/bin
 
 TOOLCHAIN_TRIPLE=arm-linux-gnueabihf
 
@@ -25,6 +24,6 @@ LDFLAGS="-Wl,--gc-sections"
 
 LIBS=""
 
-EXPORT_TOOLCHAIN=true
+# EXPORT_TOOLCHAIN=false
 source ${CUR_DIR}/env_template_for_toolchain.sh
 

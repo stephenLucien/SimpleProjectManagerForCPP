@@ -1,9 +1,32 @@
 #!/bin/bash
-test -z "$(which bash)" && echo "bash not found" && exit 1
-test -z "$(which basename)" && echo "basename not found" && exit 1
-test -z "$(which dirname)" && echo "dirname not found" && exit 1
-test -z "$(which realpath)" && echo "realpath not found" && exit 1
-test -z "$(which awk)" && echo "awk not found" && exit 1
+
+#
+function test_cmd_exist_only() {
+    local TMP_CMD="$1"
+    which ${TMP_CMD} >/dev/null 2>&1
+    if test $? -ne 0; then
+        test -n "${TMP_CMD}" && echo "${TMP_CMD} not found!!!"
+    fi
+}
+
+#
+function test_cmd_exist_exit() {
+    local TMP_CMD="$1"
+    which ${TMP_CMD} >/dev/null 2>&1
+    if test $? -ne 0; then
+        test -n "${TMP_CMD}" && echo "${TMP_CMD} not found!!!"
+        exit 1
+    fi
+}
+
+test_cmd_exist_exit bash
+test_cmd_exist_exit basename
+test_cmd_exist_exit dirname
+test_cmd_exist_exit realpath
+test_cmd_exist_exit awk
+test_cmd_exist_exit seq
+
+
 
 SCRIPT_DIR=$(dirname $(realpath $BASH_SOURCE))
 
