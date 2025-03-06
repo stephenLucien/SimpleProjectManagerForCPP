@@ -25,6 +25,22 @@ if test "$(uname -m)" != "${SYSTEM_PROCESSOR}"; then
     fi
 fi
 
+# sometimes it is needed to process PATH in Windows OS
+function escape_path() {
+    local TMPPATH="$(realpath $1)"
+    if test "$(uname)" = "Linux"; then
+        echo $TMPPATH
+    else
+        which cygpath >/dev/null
+        if test $? -ne 0; then
+            echo $TMPPATH
+        else
+            cygpath -m $TMPPATH
+        fi
+    fi
+}
+export -f escape_path
+
 function regen_mk() {
     rm -rf ${BUILD_DIR}
     ${SCRIPT_DIR}/builder/glob_src.sh
@@ -63,22 +79,35 @@ function regen_clangd_config() {
     TMP_CC=$(cat ${BUILD_DIR}/c_compiler)
     TMP_CXX=$(cat ${BUILD_DIR}/cxx_compiler)
     if test -n "$TMP_CC"; then
-        TMP_SYSROOT_DIR=$($TMP_CC -print-sysroot)
+        TMP_SYSROOT_DIR=$($TMP_CC -print-sysroot | sed -e 's/\\/\//g')
     elif test -n "$TMP_CXX"; then
-        TMP_SYSROOT_DIR=$($TMP_CXX -print-sysroot)
+        TMP_SYSROOT_DIR=$($TMP_CXX -print-sysroot | sed -e 's/\\/\//g')
     fi
 
     cat ${BUILD_DIR}/cppflags | tr ' ' '\n' | awk '!seen[$0]++' >${BUILD_DIR}/cppflags_strip
     if test -n "$TMP_SYSROOT_DIR"; then
-        echo "-I$TMP_SYSROOT_DIR" >>${BUILD_DIR}/cppflags_strip
+        TMP_SYSROOT_DIR="$(escape_path $TMP_SYSROOT_DIR)"
+        echo "TMP_SYSROOT_DIR: ${TMP_SYSROOT_DIR}"
+        echo "--sysroot=$TMP_SYSROOT_DIR" >>${BUILD_DIR}/cppflags_strip
+        ${TMP_CXX} -E -xc++ -v /dev/null 2>&1 | sed -e 's/\\/\//g' | while read LINE; do
+            TMPCNT=$(echo $LINE | grep -v '=' | awk -F'#' '{print $1}' | grep -oP '[[:graph:]]+' | wc -l)
+            if test "$TMPCNT" = "1"; then
+                TMPPATH=$(realpath $(echo $LINE | grep -oP '[[:graph:]]+' | head -n 1))
+                # echo $TMPPATH
+                if test -d "${TMPPATH}"; then
+                    echo -I$(escape_path ${TMPPATH}) >>${BUILD_DIR}/cppflags_strip
+                fi
+            fi
+        done
     fi
 
+    rm -f ${BUILD_DIR}/cppflags_strip_lines
     cat ${BUILD_DIR}/cppflags_strip | sed -e 's/-I/-I\n/g' | while read line; do
         (
             if test "$line" = "-I"; then
                 flag="$line"
             elif test -d "$BUILD_DIR/$line"; then
-                flag="$(realpath $BUILD_DIR/$line)"
+                flag="$(escape_path $BUILD_DIR/$line)"
             else
                 flag="$line"
             fi

@@ -110,12 +110,18 @@ function glob_list_to_mk() {
 
 	C_SRCS=($(exclude_file "${C_SRC_LIST}" "${IGNORE_SRC_LIST}" | tr '\n' ' '))
 	echo "C sources(cnt=${#C_SRCS[@]}):"
-	echo ${C_SRCS[@]}
+	for TMP_ELE_POS in $(seq 1 1 ${#C_SRCS[@]}); do
+		TMP_ELE_IDX=$(($TMP_ELE_POS - 1))
+		echo "${C_SRCS[$TMP_ELE_IDX]}"
+	done
 	echo ""
 
 	CXX_SRCS=($(exclude_file "${CXX_SRC_LIST}" "${IGNORE_SRC_LIST}" | tr '\n' ' '))
 	echo "CXX sources(cnt=${#CXX_SRCS[@]}):"
-	echo ${CXX_SRCS[@]}
+	for TMP_ELE_POS in $(seq 1 1 ${#CXX_SRCS[@]}); do
+		TMP_ELE_IDX=$(($TMP_ELE_POS - 1))
+		echo "${CXX_SRCS[$TMP_ELE_IDX]}"
+	done
 	echo ""
 
 	cat >${SRC_MK} <<EOF
