@@ -1,11 +1,6 @@
-#include "os_tools_net_ifaces.hpp"
-
-//
-#include "common.h"
+#include "cpp_helper/cpphelper_ifaces.hpp"
 #include "cpp_helper/cpphelper_os.hpp"
-#include "os_tools_log.h"
-#include "os_tools_net.h"
-#include "os_tools_system.h"
+
 
 //
 #include <ifaddrs.h>
@@ -15,6 +10,12 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+
+//
+#include "utils/common.h"
+#include "utils/os_tools_log.h"
+#include "utils/os_tools_net.h"
+#include "utils/os_tools_system.h"
 
 
 void CppGetIfaces::AddressV4::dump()

@@ -1,7 +1,7 @@
-#include "os_tools_net_socket.hpp"
+#include "cpp_helper/cpphelper_socket.hpp"
 
 //
-#include "os_tools_net.h"
+#include "utils/os_tools_net.h"
 
 //
 #include <netinet/in.h>

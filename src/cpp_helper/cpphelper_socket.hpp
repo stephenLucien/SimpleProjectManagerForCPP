@@ -1,5 +1,5 @@
-#ifndef OS_TOOLS_NET_SOCKET_HPP
-#define OS_TOOLS_NET_SOCKET_HPP
+#ifndef __CPPHELPER_SOCKET_H__
+#define __CPPHELPER_SOCKET_H__
 
 
 #include <cerrno>
@@ -119,4 +119,5 @@ class CppSocket
     int set_tcp_keep(bool keepalive = false, int cnt = -1, int idle = -1, int interval = -1);
 };
 
-#endif /* OS_TOOLS_NET_SOCKET_HPP */
+
+#endif  // __CPPHELPER_SOCKET_H__

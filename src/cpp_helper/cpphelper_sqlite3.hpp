@@ -6,7 +6,7 @@
 
 //
 #include "utils/os_tools_log.h"
-#include "utils/pthread_class.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 typedef int (*SQLITE_EXEC_CALLBACK)(void* user_data, int columns, char** column_values, char** column_names);
 

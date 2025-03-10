@@ -4,8 +4,8 @@
 //
 #include "manager/cmdline_argument_manager.h"
 #include "manager/test_manager.h"
-#include "utils/os_tools_net_ifaces.hpp"
-#include "utils/os_tools_net_socket.hpp"
+#include "cpp_helper/cpphelper_ifaces.hpp"
+#include "cpp_helper/cpphelper_socket.hpp"
 #include "utils/os_tools_system.h"
 
 

@@ -28,7 +28,7 @@ static inline int os_tools_sntp_get_epoch(time_t* ptime)
 #endif
 
 #ifdef __cplusplus
-    #include "utils/os_tools_net_socket.hpp"
+    #include "cpp_helper/cpphelper_socket.hpp"
 int os_tools_sntp_get_epoch_impl(CppSocket& sock, time_t* ptime);
 
 #endif

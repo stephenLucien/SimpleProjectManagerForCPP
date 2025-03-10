@@ -1,7 +1,7 @@
 #include "os_tools_log.h"
 
 //
-#include "pthread_class.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 //
 #include <stdio.h>

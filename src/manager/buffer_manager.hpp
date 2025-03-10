@@ -6,7 +6,7 @@
 #include <vector>
 
 //
-#include "utils/pthread_class.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 class BufferManager : public PthreadWrapper
 {

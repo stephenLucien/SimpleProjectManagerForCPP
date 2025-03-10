@@ -1,5 +1,6 @@
-#ifndef __CURL_WRAPPER_H__
-#define __CURL_WRAPPER_H__
+#ifndef __CPPHELPER_CURL_H__
+#define __CPPHELPER_CURL_H__
+
 
 #include <cstddef>
 #include <cstdlib>
@@ -14,7 +15,7 @@
 #include "nlohmann/json.hpp"
 
 //
-#include "os_tools.h"
+#include "utils/os_tools.h"
 
 /**
  * @brief Init and clean up
@@ -381,4 +382,4 @@ int curl_post_json_basic(const std::string&                                  url
                          int                                                 en_debug        = 0);
 
 
-#endif  // __CURL_WRAPPER_H__
+#endif  // __CPPHELPER_CURL_H__

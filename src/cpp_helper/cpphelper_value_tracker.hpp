@@ -1,8 +1,9 @@
-#ifndef __VALUE_TRACKER_H__
-#define __VALUE_TRACKER_H__
+#ifndef __CPPHELPER_VALUE_TRACKER_H__
+#define __CPPHELPER_VALUE_TRACKER_H__
 
 
-#include "pthread_class.hpp"
+
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 //
 #include <cstdint>
@@ -13,7 +14,7 @@
 class ValueTracker : public PthreadWrapper
 {
    public:
-    typedef void (*OnValueChangedHdl)(void* ptr);
+    typedef void (*OnValueChangedHdl)(void* ptr, int flags);
 
    private:
     typedef struct
@@ -83,14 +84,23 @@ class ValueTracker : public PthreadWrapper
                 e.second.last_touch_ts = curts;
                 //
                 e.second.need_handled = 1;
-            }
-            if (e.second.need_handled && curts >= e.second.last_touch_ts + e.second.item.final_timeout_ms)
-            {
+                // value be changing
                 if (e.second.hdl)
                 {
-                    e.second.hdl(ptr0);
+                    e.second.hdl(ptr0, 0);
                 }
-                e.second.need_handled = 0;
+            }
+            if (e.second.need_handled)
+            {
+                if (curts >= e.second.last_touch_ts + e.second.item.final_timeout_ms)
+                {
+                    // value be stable
+                    if (e.second.hdl)
+                    {
+                        e.second.hdl(ptr0, 1);
+                    }
+                    e.second.need_handled = 0;
+                }
             }
         }
 
@@ -129,11 +139,12 @@ class ValueTracker : public PthreadWrapper
     }
 };
 
-#define EASY_TRACK_VALUE(refvalue, wait_for_final_ms, codeblock)                                                          \
-    static void on_##refvalue##_changed(void* ptr)                                                                        \
+#define EASY_TRACK_VALUE_CHANGE(refvalue, wait_for_final_ms, codeblock)                                                   \
+    static void on_##refvalue##_changed(void* ptr, int flags)                                                             \
     {                                                                                                                     \
         auto pvalue = (__typeof__(refvalue)*)ptr;                                                                         \
         auto value  = *pvalue;                                                                                            \
+        if (!flags)                                                                                                       \
         {                                                                                                                 \
             codeblock                                                                                                     \
         }                                                                                                                 \
@@ -144,4 +155,20 @@ class ValueTracker : public PthreadWrapper
     }
 
 
-#endif  // __VALUE_TRACKER_H__
+#define EASY_TRACK_VALUE_FINAL(refvalue, wait_for_final_ms, codeblock)                                                    \
+    static void on_##refvalue##_changed(void* ptr, int flags)                                                             \
+    {                                                                                                                     \
+        auto pvalue = (__typeof__(refvalue)*)ptr;                                                                         \
+        auto value  = *pvalue;                                                                                            \
+        if (flags)                                                                                                        \
+        {                                                                                                                 \
+            codeblock                                                                                                     \
+        }                                                                                                                 \
+    }                                                                                                                     \
+    __attribute__((constructor)) static void RegValueTacker_##refvalue()                                                  \
+    {                                                                                                                     \
+        ValueTracker::getInstance()->addTrack(&(refvalue), sizeof(refvalue), on_##refvalue##_changed, wait_for_final_ms); \
+    }
+
+
+#endif  // __CPPHELPER_VALUE_TRACKER_H__

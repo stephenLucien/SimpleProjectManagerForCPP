@@ -1,11 +1,11 @@
-#include "curl_wrapper.hpp"
+#include "cpp_helper/cpphelper_curl.hpp"
 
 //
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include "nlohmann/json.hpp"
-#include "os_tools.h"
+#include "utils/os_tools.h"
 
 
 typedef struct

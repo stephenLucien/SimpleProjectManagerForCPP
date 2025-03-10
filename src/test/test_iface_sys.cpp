@@ -3,7 +3,7 @@
 
 //
 #include "manager/test_manager.h"
-#include "utils/os_tools_net_ifaces.hpp"
+#include "cpp_helper/cpphelper_ifaces.hpp"
 
 
 int test_ifaces_sys(int reason, void* userdata)

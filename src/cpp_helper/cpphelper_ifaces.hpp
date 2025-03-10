@@ -1,12 +1,15 @@
-#ifndef OS_TOOLS_NET_IFACES_HPP
-#define OS_TOOLS_NET_IFACES_HPP
+#ifndef __CPPHELPER_IFACES_H__
+#define __CPPHELPER_IFACES_H__
+
 
 #include <netinet/in.h>
 #include <list>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include "os_tools_net.h"
+
+//
+#include "utils/os_tools_net.h"
 
 
 class CppGetIfaces
@@ -127,4 +130,4 @@ class CppGetIfaces
 
 int os_tools_iface_get_sys_info(std::unordered_map<std::string, std::unordered_map<std::string, std::string>> &ifaces_infos);
 
-#endif /* OS_TOOLS_NET_IFACES_HPP */
+#endif  // __CPPHELPER_IFACES_H__

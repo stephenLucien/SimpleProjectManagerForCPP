@@ -28,10 +28,10 @@ echo ../src/app/app_nanogui.cpp
 # echo ../src/app/app_console.cpp
 
 # depends on opencv
-echo ../src/test/test_opencv2.cpp
+# echo ../src/test/test_opencv2.cpp
 
 # depends on libcurl
-# echo ../src/utils/curl_wrapper.cpp
+# echo ../src/cpp_helper/cpphelper_curl.cpp
 # echo ../src/test/test_curl_wrapper.cpp
 
 # depends on openssl
@@ -39,15 +39,15 @@ echo ../src/test/test_opencv2.cpp
 # echo ../src/test/test_base64_openssl.cpp
 
 # depends on qrencode
-echo ../src/qrcode/qrcode_content_wifi.cpp
-echo ../src/qrcode/qrcode.cpp
-echo ../src/test/test_qrcode.cpp
+# echo ../src/qrcode/qrcode_content_wifi.cpp
+# echo ../src/qrcode/qrcode.cpp
+# echo ../src/test/test_qrcode.cpp
 
 # depends on libalsa
-echo ../src/alsa_user/pcm_player.cpp
+# echo ../src/alsa_user/pcm_player.cpp
 
 # sqlite
-echo ../src/test/test_sqlite3.cpp
+# echo ../src/test/test_sqlite3.cpp
 
 # buffer manager
 # echo ../src/manager/buffer_manager.cpp

@@ -2,7 +2,7 @@
 
 //
 #include "cstring_proc.h"
-#include "pthread_class.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 //
 #include <string.h>

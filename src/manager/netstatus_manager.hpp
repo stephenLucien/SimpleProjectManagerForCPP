@@ -3,7 +3,7 @@
 
 //
 #include "utils/os_tools_net.h"
-#include "utils/pthread_class.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 class NetStatusManager : public PthreadWrapper
 {

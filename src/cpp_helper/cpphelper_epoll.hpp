@@ -16,7 +16,9 @@
 #include <utility>
 #include <vector>
 #include "utils/os_tools_log.h"
-#include "utils/pthread_class.hpp"
+
+//
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 class EpollHelper : PthreadWrapper
 {

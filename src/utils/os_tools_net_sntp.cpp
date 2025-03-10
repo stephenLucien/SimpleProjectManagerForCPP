@@ -5,7 +5,7 @@
 #include <cstdio>
 #include "cpp_helper/cpphelper_epoll.hpp"
 #include "os_tools_net.h"
-#include "os_tools_net_socket.hpp"
+#include "cpp_helper/cpphelper_socket.hpp"
 #include "sntp_client.h"
 
 #define USING_EPOLL 1

@@ -1,6 +1,6 @@
 
 
-#include "utils/curl_wrapper.hpp"
+#include "cpp_helper/cpphelper_curl.hpp"
 #include "utils/os_tools.h"
 
 //

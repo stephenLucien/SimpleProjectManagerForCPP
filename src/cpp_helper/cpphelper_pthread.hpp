@@ -1,5 +1,6 @@
-#ifndef __PTHREAD_CLASS_H__
-#define __PTHREAD_CLASS_H__
+#ifndef __CPPHELPER_PTHREAD_H__
+#define __CPPHELPER_PTHREAD_H__
+
 
 #include <inttypes.h>
 #include <malloc.h>
@@ -14,7 +15,7 @@
 #include <string>
 
 
-#include "os_tools_log.h"
+#include "utils/os_tools_log.h"
 
 
 
@@ -629,4 +630,5 @@ class TmpDisablePthreadCancel
     DIR* dir = dir##_cpp_ptr.get()
 
 
-#endif  // __PTHREAD_CLASS_H__
+
+#endif  // __CPPHELPER_PTHREAD_H__

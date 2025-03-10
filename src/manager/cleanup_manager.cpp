@@ -6,7 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include "utils/os_tools.h"
-#include "utils/pthread_class.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 namespace
 {

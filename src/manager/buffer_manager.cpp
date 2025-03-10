@@ -7,7 +7,7 @@
 
 //
 #include "utils/os_tools.h"
-#include "utils/pthread_class.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 BufferManager::BufferManager(int slice_sz, int total_cnt, BufferItemHDL func, void *func_data, int cb_duration_ms)
 {

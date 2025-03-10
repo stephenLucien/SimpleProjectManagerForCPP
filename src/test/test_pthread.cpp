@@ -15,7 +15,7 @@
 #include "map-macro/map.h"
 #include "utils/os_tools.h"
 #include "utils/os_tools_log.h"
-#include "utils/pthread_class.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
 
 namespace
 {
