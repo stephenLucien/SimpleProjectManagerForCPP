@@ -1,14 +1,42 @@
 #ifndef OS_TOOLS_LOG_H
 #define OS_TOOLS_LOG_H
 
+#include <ctype.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "os_tools_time.h"
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+static inline const char *os_get_filename(const char *path)
+{
+    if (!path)
+    {
+        return "";
+    }
+    // unix-like path
+    const char *pos0 = strrchr(path, '/');
+    if (pos0)
+    {
+        return pos0 + 1;
+    }
+    // win-path
+    const char *pos1 = strrchr(path, '\\');
+    if (pos1)
+    {
+        return pos1 + 1;
+    }
+    return path;
+}
+
+#ifndef __FILE_NAME__
+    #define __FILE_NAME__ (os_get_filename(__FILE__))
 #endif
 
 typedef enum
@@ -67,7 +95,7 @@ int os_log_printf(int prio, const char *tag, const char *fmt, ...);
 #define OS_LOGV(msg, ...)                                         \
     os_log_printf(OS_LOG_TRACE,                                   \
                   OS_LOG_TAG,                                     \
-                  "[%s,%llu] <%s,%d>" msg,                        \
+                  "[%s,%" PRIu64 "] <%s,%d>" msg,                 \
                   os_logts_str((char *)__builtin_alloca(64), 64), \
                   os_logts_ms(),                                  \
                   __FUNCTION__,                                   \
@@ -78,7 +106,7 @@ int os_log_printf(int prio, const char *tag, const char *fmt, ...);
 #define OS_LOGD(msg, ...)                                         \
     os_log_printf(OS_LOG_DEBUG,                                   \
                   OS_LOG_TAG,                                     \
-                  "[%s,%llu] <%s,%d> " msg,                       \
+                  "[%s,%" PRIu64 "] <%s,%d> " msg,                \
                   os_logts_str((char *)__builtin_alloca(64), 64), \
                   os_logts_ms(),                                  \
                   __FUNCTION__,                                   \
@@ -89,7 +117,7 @@ int os_log_printf(int prio, const char *tag, const char *fmt, ...);
 #define OS_LOGI(msg, ...)                                         \
     os_log_printf(OS_LOG_INFO,                                    \
                   OS_LOG_TAG,                                     \
-                  "[%s,%llu] <%s,%d> " msg,                       \
+                  "[%s,%" PRIu64 "] <%s,%d> " msg,                \
                   os_logts_str((char *)__builtin_alloca(64), 64), \
                   os_logts_ms(),                                  \
                   __FUNCTION__,                                   \
@@ -100,7 +128,7 @@ int os_log_printf(int prio, const char *tag, const char *fmt, ...);
 #define OS_LOGW(msg, ...)                                         \
     os_log_printf(OS_LOG_WARNING,                                 \
                   OS_LOG_TAG,                                     \
-                  "[%s,%llu] <%s,%d> " msg,                       \
+                  "[%s,%" PRIu64 "] <%s,%d> " msg,                \
                   os_logts_str((char *)__builtin_alloca(64), 64), \
                   os_logts_ms(),                                  \
                   __FUNCTION__,                                   \
@@ -111,7 +139,7 @@ int os_log_printf(int prio, const char *tag, const char *fmt, ...);
 #define OS_LOGE(msg, ...)                                         \
     os_log_printf(OS_LOG_ERROR,                                   \
                   OS_LOG_TAG,                                     \
-                  "[%s,%llu] <%s,%d> " msg,                       \
+                  "[%s,%" PRIu64 "] <%s,%d> " msg,                \
                   os_logts_str((char *)__builtin_alloca(64), 64), \
                   os_logts_ms(),                                  \
                   __FUNCTION__,                                   \
@@ -122,6 +150,19 @@ int os_log_printf(int prio, const char *tag, const char *fmt, ...);
 const char *os_log_hexdump2buf(char *buf, size_t bufsz, void *data, int datalen, int print_addr, int bytes_per_pack, int packs_per_line);
 
 #define OS_LOG_HEXDUMP(data, len) os_log_hexdump2buf((char *)__builtin_alloca(4096), 4096, (void *)data, len, 1, 4, 4)
+
+
+#ifndef DEBUG
+    #define DEBUG                                                     \
+        os_log_printf(OS_LOG_DEBUG,                                   \
+                      "dbg",                                          \
+                      "[%s,%" PRIu64 "] <fn:%s,func:%s,lno:%d>",      \
+                      os_logts_str((char *)__builtin_alloca(64), 64), \
+                      os_logts_ms(),                                  \
+                      __FILE_NAME__,                                  \
+                      __FUNCTION__,                                   \
+                      __LINE__);
+#endif
 
 #ifdef __cplusplus
 }
