@@ -62,6 +62,50 @@
                                                         });                  \
     FILE*                                  fd = fd##_cpp_ptr.get()
 
+
+class CppFileOpen
+{
+   private:
+    FILE* fd = NULL;
+
+   public:
+    virtual ~CppFileOpen()
+    {
+        close();
+    }
+    CppFileOpen() = default;
+    CppFileOpen(const std::string& f, const std::string& m, bool isPipe = false)
+    {
+        open(f, m, isPipe);
+    }
+    int close()
+    {
+        if (fd)
+        {
+            fclose(fd);
+            fd = NULL;
+        }
+        return 0;
+    }
+    int open(const std::string& f, const std::string& m, bool isPipe = false)
+    {
+        close();
+        if (isPipe)
+        {
+            fd = popen(f.c_str(), m.c_str());
+        } else
+        {
+            fd = fopen(f.c_str(), m.c_str());
+        }
+        return fd ? 0 : -1;
+    }
+    FILE* get()
+    {
+        return fd;
+    }
+};
+
+
 #define CPP_OPENDIR(dir, path)                                                \
     std::unique_ptr<DIR, void (*)(DIR*)> dir##_cpp_ptr(opendir(path),         \
                                                        [](DIR* ptr)           \

@@ -1,6 +1,7 @@
 #include "cpp_helper/cpphelper_curl.hpp"
 
 //
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -16,22 +17,33 @@ int curl_download_file(const char* url, const char* outputfile, int timeout_conn
     {
         return ret;
     }
-
-    CurlWrapper curl_cpp(en_debug);
+    std::shared_ptr<CurlSetupDebug> pdebug = nullptr;
+    //
+    CurlWrapper curl_cpp;
     if (!curl_cpp.isValid())
     {
         os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
         return ret;
     }
-    ret = curl_cpp.setupWriteFile(outputfile);
-    if (ret)
+    if (en_debug)
     {
-        return ret;
+        pdebug = std::make_shared<CurlSetupDebug>();
+        pdebug->setup(curl_cpp.ptr());
     }
+    //
+    CurlFileWriter file_writer(outputfile);
+    //
+    CurlSetupReadWrite writer(curl_cpp.ptr(), &file_writer);
+
     curl_cpp.setUrl(url);
     curl_cpp.setupTimeout(timeout_ms, timeout_conn_ms);
 
     ret = curl_cpp.perform();
+    //
+    if (pdebug)
+    {
+        pdebug->dump();
+    }
 
     return ret;
 }
@@ -48,16 +60,25 @@ int curl_delete_basic(const std::string&                                  url,
     int ret = -1;
 
     //
-    CurlWrapper curl_cpp(en_debug);
-    /* get a curl handle */
+    std::shared_ptr<CurlSetupDebug> pdebug = nullptr;
+    //
+    CurlWrapper curl_cpp;
     if (!curl_cpp.isValid())
     {
         os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
         return ret;
     }
+    if (en_debug)
+    {
+        pdebug = std::make_shared<CurlSetupDebug>();
+        pdebug->setup(curl_cpp.ptr());
+    }
 
     curl_cpp.setUrl(url);
-    curl_cpp.setupHeaders(header);
+    //
+    CurlSlist mheader(header);
+    curl_cpp.setupHeaders(mheader);
+    //
     std::string bodies = CurlWrapper::genFormDataString(body, false);
     if (bodies.length() > 0)
     {
@@ -70,11 +91,19 @@ int curl_delete_basic(const std::string&                                  url,
         // allocate buffer if not
         buffer.resize(4096);
     }
-    curl_cpp.setupWriteBuffer(buffer.data(), buffer.size());
+    //
+    CurlExternalBufferWriter ext_buf_writer(buffer.data(), buffer.size());
+    //
+    CurlSetupReadWrite writer(curl_cpp.ptr(), &ext_buf_writer);
     //
     curl_cpp.setMethod_DELETE();
     //
     ret = curl_cpp.perform();
+    //
+    if (pdebug)
+    {
+        pdebug->dump();
+    }
 
     return ret;
 }
@@ -91,16 +120,26 @@ int curl_get_basic(std::string                                         url,
     int ret = -1;
 
     //
-    CurlWrapper curl_cpp(en_debug);
-    /* get a curl handle */
+    std::shared_ptr<CurlSetupDebug> pdebug = nullptr;
+    //
+    CurlWrapper curl_cpp;
     if (!curl_cpp.isValid())
     {
         os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
         return ret;
     }
+    if (en_debug)
+    {
+        pdebug = std::make_shared<CurlSetupDebug>();
+        pdebug->setup(curl_cpp.ptr());
+    }
+    //
 
-    curl_cpp.setUrl(url, query);
-    curl_cpp.setupHeaders(header);
+    curl_cpp.setUrl(url);
+    //
+    CurlSlist mheader(header);
+    curl_cpp.setupHeaders(mheader);
+    //
     curl_cpp.setupTimeout(timeout_ms, timeout_conn_ms);
     //
     if (buffer.size() == 0)
@@ -108,11 +147,19 @@ int curl_get_basic(std::string                                         url,
         // allocate buffer if not
         buffer.resize(4096);
     }
-    curl_cpp.setupWriteBuffer(buffer.data(), buffer.size());
+    //
+    CurlExternalBufferWriter ext_buf_writer(buffer.data(), buffer.size());
+    //
+    CurlSetupReadWrite writer(curl_cpp.ptr(), &ext_buf_writer);
     //
     curl_cpp.setMethod_GET();
     //
     ret = curl_cpp.perform();
+    //
+    if (pdebug)
+    {
+        pdebug->dump();
+    }
 
     return ret;
 }
@@ -129,16 +176,25 @@ int curl_post_basic(const std::string&                                  url,
     int ret = -1;
 
     //
-    CurlWrapper curl_cpp(en_debug);
-    /* get a curl handle */
+    std::shared_ptr<CurlSetupDebug> pdebug = nullptr;
+    //
+    CurlWrapper curl_cpp;
     if (!curl_cpp.isValid())
     {
         os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
         return ret;
     }
+    if (en_debug)
+    {
+        pdebug = std::make_shared<CurlSetupDebug>();
+        pdebug->setup(curl_cpp.ptr());
+    }
+    //
 
     curl_cpp.setUrl(url);
-    curl_cpp.setupHeaders(header);
+    //
+    CurlSlist mheader(header);
+    curl_cpp.setupHeaders(mheader);
     if (bodies.length() > 0)
     {
         curl_cpp.setPOSTFIELDS(bodies.c_str(), bodies.length());
@@ -150,11 +206,19 @@ int curl_post_basic(const std::string&                                  url,
         // allocate buffer if not
         buffer.resize(4096);
     }
-    curl_cpp.setupWriteBuffer(buffer.data(), buffer.size());
+    //
+    CurlExternalBufferWriter ext_buf_writer(buffer.data(), buffer.size());
+    //
+    CurlSetupReadWrite writer(curl_cpp.ptr(), &ext_buf_writer);
     //
     curl_cpp.setMethod_POST();
     //
     ret = curl_cpp.perform();
+    //
+    if (pdebug)
+    {
+        pdebug->dump();
+    }
 
     return ret;
 }

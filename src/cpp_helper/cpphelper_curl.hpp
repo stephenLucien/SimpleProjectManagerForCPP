@@ -15,13 +15,16 @@
 //
 #include <curl/curl.h>
 #include "cpp_helper/cpphelper_nlohmann_json.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
 #include "cpp_helper/cpphelper_scanJsonStr.hpp"
 #include "nlohmann/json.hpp"
 
 //
 #include "utils/os_tools.h"
 
-
+#ifndef CURL_WRITEFUNC_ERROR
+    #define CURL_WRITEFUNC_ERROR (0xFFFFFFFF)
+#endif
 
 class CurlSlist
 {
@@ -68,94 +71,550 @@ class CurlSlist
     }
 };
 
-/**
- * @brief Init and clean up
- *
- */
-class CurlWrapper
+class CurlReadWriteImpl
+{
+   public:
+    CurlReadWriteImpl()
+    {
+    }
+    virtual ~CurlReadWriteImpl()
+    {
+    }
+    virtual bool isValid()
+    {
+        return true;
+    }
+
+    virtual bool isReader()
+    {
+        return false;
+    }
+
+    virtual size_t write(void* data, size_t nsz, size_t nmemb)
+    {
+        return CURL_WRITEFUNC_ERROR;
+    }
+
+    virtual size_t read(void* data, size_t nsz, size_t nmemb)
+    {
+        return CURL_WRITEFUNC_ERROR;
+    }
+
+    virtual long getInFileSize()
+    {
+        long sz = 0;
+        return sz;
+    }
+};
+
+class CurlSetupReadWrite
 {
    private:
     //
-    typedef struct
+    CurlReadWriteImpl* m_io = nullptr;
+    //
+    bool b_cancel = false;
+    //
+    bool b_print_progress = false;
+    //
+    curl_off_t dltotal = 0, dlnow = 0, ultotal = 0, ulnow = 0;
+    //
+    float m_download_progress = 0;
+    //
+    float m_upload_progress = 0;
+    //
+    //
+    static int m_curl_xferinfo_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
     {
-        uint8_t* buf;
-        size_t   bufsz;
-        size_t   wc;
-    } CurlHttpWriteData;
+        auto* pobj = (CurlSetupReadWrite*)clientp;
+        if (!pobj)
+        {
+            return -1;
+        }
+        pobj->dltotal = dltotal;
+        pobj->dlnow   = dlnow;
+        pobj->ultotal = ultotal;
+        pobj->ulnow   = ulnow;
+        //
+        pobj->m_download_progress = dltotal ? (100.0 * dlnow / dltotal) : 0;
+        pobj->m_upload_progress   = ultotal ? (100.0 * ulnow / ultotal) : 0;
+
+        if (pobj->b_print_progress)
+        {
+            char buftest[1024];
+            memset(buftest, 0, sizeof(buftest));
+            //
+            if (pobj->m_io && pobj->m_io->isReader())
+            {
+                sprintf(buftest,
+                        "ultotal=%" CURL_FORMAT_CURL_OFF_T ", ulnow=%" CURL_FORMAT_CURL_OFF_T ", upro=%f",
+                        ultotal,
+                        ulnow,
+                        pobj->m_upload_progress);
+            } else
+            {
+                //
+                sprintf(buftest,
+                        "dltotal=%" CURL_FORMAT_CURL_OFF_T ", dlnow=%" CURL_FORMAT_CURL_OFF_T ", dpro=%f",
+                        dltotal,
+                        dlnow,
+                        pobj->m_download_progress);
+            }
+            OS_LOGV("%s", buftest);
+        }
+        return 0;
+    }
+
     //
-    typedef struct
+    static size_t curl_fd_write_cb(void* data, size_t nsz, size_t nmemb, void* clientp)
     {
-        size_t buf_header_out_offset;
-        char   buf_header_out[1020];
-        //
-        size_t buf_data_out_offset;
-        char   buf_data_out[4096];
-        //
-        size_t buf_header_in_offset;
-        char   buf_header_in[1024];
-        //
-        size_t buf_data_in_offset;
-        char   buf_data_in[1024 * 10];
-    } DebugData;
+        auto* pobj = (CurlSetupReadWrite*)clientp;
+        if (!pobj)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+        if (pobj->b_cancel)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        if (!pobj->m_io)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        return pobj->m_io->write(data, nsz, nmemb);
+    }
+
     //
-    CURL* curl = NULL;
+    static size_t curl_fd_read_cb(void* data, size_t nsz, size_t nmemb, void* clientp)
+    {
+        auto* pobj = (CurlSetupReadWrite*)clientp;
+        if (!pobj)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+        if (pobj->b_cancel)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        if (!pobj->m_io)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        return pobj->m_io->read(data, nsz, nmemb);
+    }
+
+   public:
+    CurlSetupReadWrite() = default;
+    CurlSetupReadWrite(CURL* curl, CurlReadWriteImpl* pio)
+    {
+        setupIO(curl, pio);
+    }
+    int setupIO(CURL* curl, CurlReadWriteImpl* pio)
+    {
+        if (!curl)
+        {
+            return -1;
+        }
+        m_io = pio;
+        if (!m_io)
+        {
+            return -1;
+        }
+        if (!m_io->isValid())
+        {
+            return -1;
+        }
+        //
+        b_cancel = false;
+        if (m_io->isReader())
+        {  //
+            curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+            curl_easy_setopt(curl, CURLOPT_READFUNCTION, curl_fd_read_cb);
+            curl_easy_setopt(curl, CURLOPT_READDATA, this);
+            curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)m_io->getInFileSize());
+        } else
+        {
+            //
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_fd_write_cb);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
+        }
+        //
+        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, m_curl_xferinfo_callback);
+        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+        return 0;
+    }
+    void setPrint(bool enbale)
+    {
+        this->b_print_progress = enbale;
+    }
+    void cancel()
+    {
+        this->b_cancel = true;
+    }
+    float getUploadProgress()
+    {
+        return m_upload_progress;
+    }
+    float getDownloadProgress()
+    {
+        return m_download_progress;
+    }
+};
+
+
+class CurlFileWriter : public CurlReadWriteImpl
+{
+   private:
     //
-    CurlSlist headers;
+    FILE* fd = NULL;
+
+   public:
+    virtual ~CurlFileWriter()
+    {
+        close();
+    }
+    CurlFileWriter() = default;
+    CurlFileWriter(const std::string& f, const std::string& m = "wb", bool isPipe = false)
+    {
+        open(f, m, isPipe);
+    }
+    int close()
+    {
+        if (fd)
+        {
+            fclose(fd);
+            fd = NULL;
+        }
+        return 0;
+    }
+    int open(const std::string& f, const std::string& m = "wb", bool isPipe = false)
+    {
+        close();
+        if (isPipe)
+        {
+            fd = popen(f.c_str(), m.c_str());
+        } else
+        {
+            fd = fopen(f.c_str(), m.c_str());
+        }
+        return fd ? 0 : -1;
+    }
+
+    FILE* get()
+    {
+        return fd;
+    }
+
+    bool isValid()
+    {
+        return get();
+    }
+
+    bool isReader()
+    {
+        return false;
+    }
+
+    size_t write(void* data, size_t nsz, size_t nmemb)
+    {
+        if (!fd)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        return fwrite(data, nsz, nmemb, fd);
+    }
+};
+
+
+class CurlFileReader : public CurlReadWriteImpl
+{
+   private:
     //
     FILE* fd = NULL;
     //
-    CurlHttpWriteData wbuf;
-    //
-    DebugData* p_debug_data = NULL;
-    //
-    float m_download_progress = 0;
-    float m_upload_progress   = 0;
+    std::string filename;
 
-    //
-    static size_t http_write_cb(void* ptr, size_t size, size_t nmemb, void* userdata)
+   public:
+    virtual ~CurlFileReader()
     {
-        int len = 0;
-        if (!userdata)
+        close();
+    }
+    CurlFileReader() = default;
+    CurlFileReader(const std::string& f, const std::string& m = "rb", bool isPipe = false)
+    {
+        open(f, m, isPipe);
+    }
+    int close()
+    {
+        if (fd)
         {
-            return len;
+            fclose(fd);
+            fd = NULL;
         }
-        auto data = (CurlHttpWriteData*)userdata;
-        //
-        len = size * nmemb;
-        if (!(data->wc + len <= data->bufsz))
+        return 0;
+    }
+    int open(const std::string& f, const std::string& m = "rb", bool isPipe = false)
+    {
+        close();
+        this->filename = f;
+        if (isPipe)
         {
-            os_log_printf(OS_LOG_ERR, "curl", "buf small");
-            return len;
+            fd = popen(this->filename.c_str(), m.c_str());
+        } else
+        {
+            fd = fopen(this->filename.c_str(), m.c_str());
         }
-        auto dst = data->buf + data->wc;
-        memcpy(dst, ptr, len);
-        data->wc += len;
-
-        return len;
+        return fd ? 0 : -1;
     }
 
-    //
-    static void dump_debug_data(DebugData* pdata)
+    FILE* get()
     {
-        if (!pdata)
+        return fd;
+    }
+
+    bool isValid()
+    {
+        return get();
+    }
+
+    bool isReader()
+    {
+        return true;
+    }
+
+    size_t read(void* data, size_t nsz, size_t nmemb)
+    {
+        if (!fd)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        return fread(data, nsz, nmemb, fd);
+    }
+
+
+    int getFileSize(const std::string& filename, long& sz)
+    {
+        int ret = -1;
+        //
+        auto fn = filename.c_str();
+        //
+        if (access(fn, F_OK) != 0)
+        {
+            return ret;
+        }
+        //
+        auto fd = get();
+        if (!fd)
+        {
+            OS_LOGE("open file fail: %s", fn);
+            return ret;
+        }
+        do
+        {
+            if (fseek(fd, 0, SEEK_END) != 0)
+            {
+                OS_LOGE("fseek end fail:%s", fn);
+                break;
+            }
+            sz = ftell(fd);
+            if (sz < 0)
+            {
+                OS_LOGE("ftell fail:%s", fn);
+                break;
+            }
+            if (fseek(fd, 0, SEEK_SET) != 0)
+            {
+                OS_LOGE("fseek set fail:%s", fn);
+                break;
+            }
+            ret = 0;
+        } while (0);
+        return ret;
+    }
+    long getInFileSize()
+    {
+        long sz = 0;
+        getFileSize(filename, sz);
+        return sz;
+    }
+};
+
+class CurlBufferWriter : public CurlReadWriteImpl
+{
+   private:
+    std::vector<uint8_t> buffer;
+    //
+    uint8_t* buf = NULL;
+    //
+    size_t bufsz = 0;
+    //
+    size_t offset = 0;
+
+   public:
+    CurlBufferWriter(size_t bufsz = 1024 * 128)
+    {
+        setupBufferSize(bufsz);
+        clearBuffer();
+    }
+    void setupBufferSize(size_t bufsz = 1024 * 128)
+    {
+        buffer.resize(bufsz);
+        this->buf   = buffer.data();
+        this->bufsz = buffer.size();
+    }
+    void clearBuffer()
+    {
+        if (!isValid())
         {
             return;
         }
+        memset(getBuffer(), 0, getBufferSz());
         //
-        os_log_printf(OS_LOG_DEBUG, "curl", "header out: \n%s", pdata->buf_header_out);
-        //
-        os_log_printf(OS_LOG_DEBUG, "curl", "data out: \n%s", pdata->buf_data_out);
-        //
-        os_log_printf(OS_LOG_DEBUG, "curl", "header in: \n%s", pdata->buf_header_in);
-        //
-        os_log_printf(OS_LOG_DEBUG, "curl", "data in: \n%s", pdata->buf_data_in);
+        offset = 0;
     }
+    uint8_t* getBuffer()
+    {
+        return buf;
+    }
+    size_t getBufferSz()
+    {
+        return bufsz;
+    }
+
+    bool isValid()
+    {
+        return getBuffer() && getBufferSz() > 0;
+    }
+
+    bool isReader()
+    {
+        return false;
+    }
+
+    size_t write(void* data, size_t nsz, size_t nmemb)
+    {
+        auto len = nsz * nmemb;
+        //
+        if (!isValid())
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+        //
+        if (!(offset + len <= getBufferSz()))
+        {
+            OS_LOGE("buf small");
+            return CURL_WRITEFUNC_ERROR;
+        }
+        auto dst = getBuffer() + offset;
+        auto src = (uint8_t*)data;
+        memcpy(dst, src, len);
+        offset += len;
+        return len;
+    }
+};
+
+
+class CurlExternalBufferWriter : public CurlReadWriteImpl
+{
+   private:
+    //
+    uint8_t* buf = NULL;
+    //
+    size_t bufsz = 0;
+    //
+    size_t offset = 0;
+
+   public:
+    CurlExternalBufferWriter(uint8_t* buf, size_t bufsz)
+    {
+        setupExternalBuffer(buf, bufsz);
+        clearBuffer();
+    }
+    void setupExternalBuffer(uint8_t* buf, size_t bufsz)
+    {
+        this->buf   = buf;
+        this->bufsz = bufsz;
+    }
+    void clearBuffer()
+    {
+        if (!isValid())
+        {
+            return;
+        }
+        memset(getBuffer(), 0, getBufferSz());
+        //
+        offset = 0;
+    }
+    uint8_t* getBuffer()
+    {
+        return buf;
+    }
+    size_t getBufferSz()
+    {
+        return bufsz;
+    }
+
+    bool isValid()
+    {
+        return getBuffer() && getBufferSz() > 0;
+    }
+
+    bool isReader()
+    {
+        return false;
+    }
+
+    size_t write(void* data, size_t nsz, size_t nmemb)
+    {
+        auto len = nsz * nmemb;
+        //
+        if (!isValid())
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+        //
+        if (!(offset + len <= getBufferSz()))
+        {
+            OS_LOGE("buf small");
+            return CURL_WRITEFUNC_ERROR;
+        }
+        auto dst = getBuffer() + offset;
+        auto src = (uint8_t*)data;
+        memcpy(dst, src, len);
+        offset += len;
+        return len;
+    }
+};
+
+class CurlSetupDebug
+{
+   private:
+    //
+    size_t buf_header_out_offset;
+    char   buf_header_out[1020];
+    //
+    size_t buf_data_out_offset;
+    char   buf_data_out[4096];
+    //
+    size_t buf_header_in_offset;
+    char   buf_header_in[1024];
+    //
+    size_t buf_data_in_offset;
+    char   buf_data_in[1024 * 10];
+
 
     //
     static int debug_func(CURL* handle, curl_infotype type, char* data, size_t size, void* clientp)
     {
-        auto* pdata = (DebugData*)clientp;
-        if (!pdata)
+        auto* pobj = (CurlSetupDebug*)clientp;
+        if (!pobj)
         {
             return -1;
         }
@@ -166,30 +625,30 @@ class CurlWrapper
         {
             case CURLINFO_HEADER_OUT:
             {
-                poffset = &pdata->buf_header_out_offset;
-                ptr     = pdata->buf_header_out + pdata->buf_header_out_offset;
-                sz      = sizeof(pdata->buf_header_out) - pdata->buf_header_out_offset;
+                poffset = &pobj->buf_header_out_offset;
+                ptr     = pobj->buf_header_out + pobj->buf_header_out_offset;
+                sz      = sizeof(pobj->buf_header_out) - pobj->buf_header_out_offset;
             }
             break;
             case CURLINFO_DATA_OUT:
             {
-                poffset = &pdata->buf_data_out_offset;
-                ptr     = pdata->buf_data_out + pdata->buf_data_out_offset;
-                sz      = sizeof(pdata->buf_data_out) - pdata->buf_data_out_offset;
+                poffset = &pobj->buf_data_out_offset;
+                ptr     = pobj->buf_data_out + pobj->buf_data_out_offset;
+                sz      = sizeof(pobj->buf_data_out) - pobj->buf_data_out_offset;
             }
             break;
             case CURLINFO_HEADER_IN:
             {
-                poffset = &pdata->buf_header_in_offset;
-                ptr     = pdata->buf_header_in + pdata->buf_header_in_offset;
-                sz      = sizeof(pdata->buf_header_in) - pdata->buf_header_in_offset;
+                poffset = &pobj->buf_header_in_offset;
+                ptr     = pobj->buf_header_in + pobj->buf_header_in_offset;
+                sz      = sizeof(pobj->buf_header_in) - pobj->buf_header_in_offset;
             }
             break;
             case CURLINFO_DATA_IN:
             {
-                poffset = &pdata->buf_data_in_offset;
-                ptr     = pdata->buf_data_in + pdata->buf_data_in_offset;
-                sz      = sizeof(pdata->buf_data_in) - pdata->buf_data_in_offset;
+                poffset = &pobj->buf_data_in_offset;
+                ptr     = pobj->buf_data_in + pobj->buf_data_in_offset;
+                sz      = sizeof(pobj->buf_data_in) - pobj->buf_data_in_offset;
             }
             break;
             default: /* in case a new one is introduced to shock us */
@@ -210,8 +669,9 @@ class CurlWrapper
         return 0;
     }
 
+   public:
     //
-    static void setup_curl_debug(CURL* curl, DebugData* pdata)
+    void setup(CURL* curl)
     {
         if (!curl)
         {
@@ -220,27 +680,35 @@ class CurlWrapper
         /* the DEBUGFUNCTION has no effect until we enable VERBOSE */
         curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
         curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, debug_func);
-        curl_easy_setopt(curl, CURLOPT_DEBUGDATA, pdata);
+        curl_easy_setopt(curl, CURLOPT_DEBUGDATA, this);
     }
 
     //
-    static int m_curl_xferinfo_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
+    void dump()
     {
-        auto* pobj = (CurlWrapper*)clientp;
-        if (!pobj)
-        {
-            return -1;
-        }
-#if 0
-        char buftest[1024];
-        sprintf(buftest, "\n process: dltotal=%ld,dlnow=%ld,ultotal=%ld,ulnow=%ld", dltotal, dlnow, ultotal, ulnow);
-        OS_LOGV("%s", buftest);
-#endif
-        pobj->m_download_progress = dltotal ? (100.0 * dlnow / dltotal) : 0;
-        pobj->m_upload_progress   = ultotal ? (100.0 * ulnow / ultotal) : 0;
-
-        return 0;
+        //
+        os_log_printf(OS_LOG_DEBUG, "curl", "header out: \n%s", this->buf_header_out);
+        //
+        os_log_printf(OS_LOG_DEBUG, "curl", "data out: \n%s", this->buf_data_out);
+        //
+        os_log_printf(OS_LOG_DEBUG, "curl", "header in: \n%s", this->buf_header_in);
+        //
+        os_log_printf(OS_LOG_DEBUG, "curl", "data in: \n%s", this->buf_data_in);
     }
+};
+
+
+
+/**
+ * @brief Init and clean up
+ *
+ */
+class CurlWrapper
+{
+   private:
+    //
+    CURL* curl = NULL;
+
     //
     int _deinit()
     {
@@ -249,22 +717,10 @@ class CurlWrapper
             curl_easy_cleanup(curl);
             curl = NULL;
         }
-        if (p_debug_data)
-        {
-            dump_debug_data(p_debug_data);
-            //
-            free(p_debug_data);
-            p_debug_data = NULL;
-        }
-        if (fd)
-        {
-            fclose(fd);
-            fd = NULL;
-        }
         return 0;
     }
     //
-    int _init(bool dumpInfo = false)
+    int _init()
     {
         _deinit();
         //
@@ -274,27 +730,15 @@ class CurlWrapper
             os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
             return -1;
         }
-
-        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, m_curl_xferinfo_callback);
-        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
-
-        if (dumpInfo)
-        {
-            p_debug_data = (DebugData*)malloc(sizeof(DebugData));
-            //
-            memset(p_debug_data, 0, sizeof(DebugData));
-            //
-            setup_curl_debug(curl, p_debug_data);
-        }
         return 0;
     }
 
 
 
    public:
-    CurlWrapper(bool dumpInfo = false)
+    CurlWrapper()
     {
-        _init(dumpInfo);
+        _init();
     }
     virtual ~CurlWrapper()
     {
@@ -329,35 +773,6 @@ class CurlWrapper
     int perform()
     {
         return perform(curl);
-    }
-
-    float getUploadProgress()
-    {
-        return m_upload_progress;
-    }
-    float getDownloadProgress()
-    {
-        return m_download_progress;
-    }
-
-    static int getLength(CURL* curl, double& length_sz)
-    {
-        int ret = -1;
-        //
-        if (!curl)
-        {
-            return ret;
-        }
-        ret = curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &length_sz);
-        if (ret != CURLE_OK)
-        {
-        }
-
-        return 0;
-    }
-    int getLength(double& length_sz)
-    {
-        return getLength(curl, length_sz);
     }
 
     static int setUrl(CURL* curl, const std::string& url, int followLocation = 1, int ssl_verifypeer = 0)
@@ -430,55 +845,6 @@ class CurlWrapper
     int setupTimeout(int timeout_ms = -1, int timeout_conn_ms = 5 * 1000)
     {
         return setupTimeout(curl, timeout_ms, timeout_conn_ms);
-    }
-
-    int setupWriteFile(const std::string& path)
-    {
-        int ret = -1;
-        //
-        if (!curl)
-        {
-            return ret;
-        }
-        if (fd)
-        {
-            fclose(fd);
-            fd = NULL;
-        }
-        fd = fopen(path.c_str(), "wb");
-        if (!fd)
-        {
-            return ret;
-        }
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, fwrite);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fd);
-
-        return 0;
-    }
-
-    int setupWriteBuffer(void* buf, size_t bufsz)
-    {
-        int ret = -1;
-        //
-        if (!buf || bufsz <= 1)
-        {
-            return ret;
-        }
-        memset(buf, 0, bufsz);
-        //
-        if (!curl)
-        {
-            return ret;
-        }
-        memset(&wbuf, 0, sizeof(wbuf));
-        wbuf.buf   = (uint8_t*)buf;
-        wbuf.bufsz = bufsz - 1;
-        //
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &wbuf);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, http_write_cb);
-
-        //
-        return 0;
     }
 
     static int setMethod_DELETE(CURL* curl)
@@ -605,18 +971,103 @@ class CurlWrapper
 
         return 0;
     }
+    int setupHeaders(CurlSlist& slistHeaders)
+    {
+        return setupHeaders(curl, slistHeaders);
+    }
+};
 
-    int setupHeaders(const std::unordered_map<std::string, std::string>& header)
+
+class CurlFileDownloader : public PthreadWrapper
+{
+   private:
+    //
+    int m_errcode = -1;
+    //
+    CurlFileWriter m_file_writer;
+    //
+    CurlSetupReadWrite m_writer;
+    //
+    std::string url, file;
+    //
+    int timeout_ms, timeout_conn_ms;
+    //
+    int download(const std::string& url, const std::string& file, int timeout_ms, int timeout_conn_ms)
     {
         int ret = -1;
         //
+        CurlWrapper m_curl_ctx;
+        //
+        auto curl = m_curl_ctx.ptr();
         if (!curl)
         {
             return ret;
         }
-        headers.cleanup();
-        headers.append(header);
-        return setupHeaders(curl, headers);
+        //
+        m_file_writer.open(file);
+        m_writer.setupIO(m_curl_ctx.ptr(), &m_file_writer);
+        //
+        CurlWrapper::setUrl(curl, url);
+        //
+        CurlWrapper::setupTimeout(curl, timeout_ms, timeout_conn_ms);
+        //
+        ret = CurlWrapper::perform(curl);
+
+        return ret;
+    }
+    bool threadLoop() override
+    {
+        if (exitPending())
+        {
+            return false;
+        }
+        download(url, file, timeout_ms, timeout_conn_ms);
+        return false;
+    }
+
+   public:
+    CurlFileDownloader() = default;
+    CurlFileDownloader(const std::string& url, const std::string& file, int timeout_ms = -1, int timeout_conn_ms = -1)
+    {
+        setupUrl(url);
+        setupFile(file);
+        setupTimeout(timeout_ms);
+        setupConnTimeout(timeout_conn_ms);
+    }
+
+    void setupUrl(const std::string& url)
+    {
+        this->url = url;
+    }
+    void setupFile(const std::string& file)
+    {
+        this->file = file;
+    }
+    void setupTimeout(int timeout_ms)
+    {
+        this->timeout_ms = timeout_ms;
+    }
+    void setupConnTimeout(int timeout_conn_ms)
+    {
+        this->timeout_conn_ms = timeout_conn_ms;
+    }
+    void requestExit() override
+    {
+        m_writer.cancel();
+    }
+    void setPrint(bool enable)
+    {
+        m_writer.setPrint(enable);
+    }
+    bool run(const char* task_name = NULL)
+    {
+        m_errcode = -1;
+        //
+        return PthreadWrapper::run(task_name);
+    }
+    int getErrcode()
+    {
+        return m_errcode;
     }
 };
 

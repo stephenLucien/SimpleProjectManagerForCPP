@@ -398,9 +398,13 @@ class PthreadWrapper
         return is_running;
     }
 
-    void requestExit()
+    void _requestExit()
     {
         req_exit = 1;
+    }
+
+    virtual void requestExit()
+    {
     }
 
     /**
@@ -504,6 +508,9 @@ class PthreadWrapper
         if (is_running)
         {
             OS_LOGV("timeout_ms=%" PRId32 "", timeout_ms);
+            //
+            _requestExit();
+            //
             requestExit();
             //
             wait_loop(timeout_ms);
