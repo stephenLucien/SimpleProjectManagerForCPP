@@ -256,13 +256,31 @@ class CurlSetupReadWrite
     {
         this->b_cancel = true;
     }
+
     float getUploadProgress()
     {
         return m_upload_progress;
     }
+    long getUploadTotal()
+    {
+        return ultotal;
+    }
+    long getUploadNow()
+    {
+        return ulnow;
+    }
+
     float getDownloadProgress()
     {
         return m_download_progress;
+    }
+    long getDownloadTotal()
+    {
+        return dltotal;
+    }
+    long getDownloadNow()
+    {
+        return dlnow;
     }
 };
 
@@ -1055,10 +1073,7 @@ class CurlFileDownloader : public PthreadWrapper
     {
         m_writer.cancel();
     }
-    void setPrint(bool enable)
-    {
-        m_writer.setPrint(enable);
-    }
+    
     bool run(const char* task_name = NULL)
     {
         m_errcode = -1;
@@ -1068,6 +1083,11 @@ class CurlFileDownloader : public PthreadWrapper
     int getErrcode()
     {
         return m_errcode;
+    }
+
+    CurlSetupReadWrite* getWriter()
+    {
+        return &m_writer;
     }
 };
 

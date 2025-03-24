@@ -47,7 +47,7 @@ int test_curl_downloader(int reason, void *userdata)
     // CurlFileDownloader downloader("https://github.com/opencv/opencv_contrib/archive/refs/tags/4.11.0.tar.gz", "opencv_contrib_4.11.0.tar.gz");
 
     //
-    downloader.setPrint(true);
+    downloader.getWriter()->setPrint(true);
     downloader.run("OpencvDownloader");
     while (m_app_running && downloader.isRunning())
     {
