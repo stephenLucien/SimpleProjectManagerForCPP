@@ -3,6 +3,8 @@
 
 
 #include <cstddef>
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -12,53 +14,625 @@
 
 //
 #include <curl/curl.h>
+#include "cpp_helper/cpphelper_nlohmann_json.hpp"
+#include "cpp_helper/cpphelper_pthread.hpp"
+#include "cpp_helper/cpphelper_scanJsonStr.hpp"
 #include "nlohmann/json.hpp"
 
 //
 #include "utils/os_tools.h"
 
-/**
- * @brief Init and clean up
- *
- */
-class CurlWrapper
+#ifndef CURL_WRITEFUNC_ERROR
+    #define CURL_WRITEFUNC_ERROR (0xFFFFFFFF)
+#endif
+
+class CurlSlist
 {
    private:
-    typedef struct
-    {
-        size_t buf_header_out_offset;
-        char   buf_header_out[1020];
-        //
-        size_t buf_data_out_offset;
-        char   buf_data_out[4096];
-        //
-        size_t buf_header_in_offset;
-        char   buf_header_in[1024];
-        //
-        size_t buf_data_in_offset;
-        char   buf_data_in[1024 * 10];
-    } DebugData;
+    struct curl_slist* headers = NULL;
 
-    static void dump_debug_data(DebugData* pdata)
+   public:
+    CurlSlist(const std::unordered_map<std::string, std::string>& header = std::unordered_map<std::string, std::string>())
     {
-        if (!pdata)
+        append(header);
+    }
+    virtual ~CurlSlist()
+    {
+        cleanup();
+    }
+
+    void append(const std::unordered_map<std::string, std::string>& header)
+    {
+        for (auto& e : header)
+        {
+            auto obj = e.first + ": " + e.second;
+            if (!headers)
+            {
+                headers = curl_slist_append(NULL, obj.c_str());
+            } else
+            {
+                curl_slist_append(headers, obj.c_str());
+            }
+        }
+    }
+
+    void cleanup()
+    {
+        if (headers)
+        {
+            curl_slist_free_all(headers);
+            headers = NULL;
+        }
+    }
+
+    struct curl_slist* ptr()
+    {
+        return headers;
+    }
+};
+
+class CurlReadWriteImpl
+{
+   public:
+    CurlReadWriteImpl()
+    {
+    }
+    virtual ~CurlReadWriteImpl()
+    {
+    }
+    virtual bool isValid()
+    {
+        return true;
+    }
+
+    virtual bool isReader()
+    {
+        return false;
+    }
+
+    virtual size_t write(void* data, size_t nsz, size_t nmemb)
+    {
+        return CURL_WRITEFUNC_ERROR;
+    }
+
+    virtual size_t read(void* data, size_t nsz, size_t nmemb)
+    {
+        return CURL_WRITEFUNC_ERROR;
+    }
+
+    virtual long getInFileSize()
+    {
+        long sz = 0;
+        return sz;
+    }
+};
+
+class CurlSetupReadWrite
+{
+   private:
+    //
+    CurlReadWriteImpl* m_io = nullptr;
+    //
+    bool b_cancel = false;
+    //
+    bool b_print_progress = false;
+    //
+    curl_off_t dltotal = 0, dlnow = 0, ultotal = 0, ulnow = 0;
+    //
+    float m_download_progress = 0;
+    //
+    float m_upload_progress = 0;
+    //
+    //
+    static int m_curl_xferinfo_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
+    {
+        auto* pobj = (CurlSetupReadWrite*)clientp;
+        if (!pobj)
+        {
+            return -1;
+        }
+        pobj->dltotal = dltotal;
+        pobj->dlnow   = dlnow;
+        pobj->ultotal = ultotal;
+        pobj->ulnow   = ulnow;
+        //
+        pobj->m_download_progress = dltotal ? (100.0 * dlnow / dltotal) : 0;
+        pobj->m_upload_progress   = ultotal ? (100.0 * ulnow / ultotal) : 0;
+
+        if (pobj->b_print_progress)
+        {
+            char buftest[1024];
+            memset(buftest, 0, sizeof(buftest));
+            //
+            if (pobj->m_io && pobj->m_io->isReader())
+            {
+                sprintf(buftest,
+                        "ultotal=%" CURL_FORMAT_CURL_OFF_T ", ulnow=%" CURL_FORMAT_CURL_OFF_T ", upro=%f",
+                        ultotal,
+                        ulnow,
+                        pobj->m_upload_progress);
+            } else
+            {
+                //
+                sprintf(buftest,
+                        "dltotal=%" CURL_FORMAT_CURL_OFF_T ", dlnow=%" CURL_FORMAT_CURL_OFF_T ", dpro=%f",
+                        dltotal,
+                        dlnow,
+                        pobj->m_download_progress);
+            }
+            OS_LOGV("%s", buftest);
+        }
+        return 0;
+    }
+
+    //
+    static size_t curl_fd_write_cb(void* data, size_t nsz, size_t nmemb, void* clientp)
+    {
+        auto* pobj = (CurlSetupReadWrite*)clientp;
+        if (!pobj)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+        if (pobj->b_cancel)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        if (!pobj->m_io)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        return pobj->m_io->write(data, nsz, nmemb);
+    }
+
+    //
+    static size_t curl_fd_read_cb(void* data, size_t nsz, size_t nmemb, void* clientp)
+    {
+        auto* pobj = (CurlSetupReadWrite*)clientp;
+        if (!pobj)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+        if (pobj->b_cancel)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        if (!pobj->m_io)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        return pobj->m_io->read(data, nsz, nmemb);
+    }
+
+   public:
+    CurlSetupReadWrite() = default;
+    CurlSetupReadWrite(CURL* curl, CurlReadWriteImpl* pio)
+    {
+        setupIO(curl, pio);
+    }
+    int setupIO(CURL* curl, CurlReadWriteImpl* pio)
+    {
+        if (!curl)
+        {
+            return -1;
+        }
+        m_io = pio;
+        if (!m_io)
+        {
+            return -1;
+        }
+        if (!m_io->isValid())
+        {
+            return -1;
+        }
+        //
+        b_cancel = false;
+        if (m_io->isReader())
+        {  //
+            curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+            curl_easy_setopt(curl, CURLOPT_READFUNCTION, curl_fd_read_cb);
+            curl_easy_setopt(curl, CURLOPT_READDATA, this);
+            curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)m_io->getInFileSize());
+        } else
+        {
+            //
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_fd_write_cb);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
+        }
+        //
+        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, m_curl_xferinfo_callback);
+        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+        return 0;
+    }
+    void setPrint(bool enbale)
+    {
+        this->b_print_progress = enbale;
+    }
+    void cancel()
+    {
+        this->b_cancel = true;
+    }
+
+    float getUploadProgress()
+    {
+        return m_upload_progress;
+    }
+    long getUploadTotal()
+    {
+        return ultotal;
+    }
+    long getUploadNow()
+    {
+        return ulnow;
+    }
+
+    float getDownloadProgress()
+    {
+        return m_download_progress;
+    }
+    long getDownloadTotal()
+    {
+        return dltotal;
+    }
+    long getDownloadNow()
+    {
+        return dlnow;
+    }
+};
+
+
+class CurlFileWriter : public CurlReadWriteImpl
+{
+   private:
+    //
+    FILE* fd = NULL;
+
+   public:
+    virtual ~CurlFileWriter()
+    {
+        close();
+    }
+    CurlFileWriter() = default;
+    CurlFileWriter(const std::string& f, const std::string& m = "wb", bool isPipe = false)
+    {
+        open(f, m, isPipe);
+    }
+    int close()
+    {
+        if (fd)
+        {
+            fclose(fd);
+            fd = NULL;
+        }
+        return 0;
+    }
+    int open(const std::string& f, const std::string& m = "wb", bool isPipe = false)
+    {
+        close();
+        if (isPipe)
+        {
+            fd = popen(f.c_str(), m.c_str());
+        } else
+        {
+            fd = fopen(f.c_str(), m.c_str());
+        }
+        return fd ? 0 : -1;
+    }
+
+    FILE* get()
+    {
+        return fd;
+    }
+
+    bool isValid()
+    {
+        return get();
+    }
+
+    bool isReader()
+    {
+        return false;
+    }
+
+    size_t write(void* data, size_t nsz, size_t nmemb)
+    {
+        if (!fd)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        return fwrite(data, nsz, nmemb, fd);
+    }
+};
+
+
+class CurlFileReader : public CurlReadWriteImpl
+{
+   private:
+    //
+    FILE* fd = NULL;
+    //
+    std::string filename;
+
+   public:
+    virtual ~CurlFileReader()
+    {
+        close();
+    }
+    CurlFileReader() = default;
+    CurlFileReader(const std::string& f, const std::string& m = "rb", bool isPipe = false)
+    {
+        open(f, m, isPipe);
+    }
+    int close()
+    {
+        if (fd)
+        {
+            fclose(fd);
+            fd = NULL;
+        }
+        return 0;
+    }
+    int open(const std::string& f, const std::string& m = "rb", bool isPipe = false)
+    {
+        close();
+        this->filename = f;
+        if (isPipe)
+        {
+            fd = popen(this->filename.c_str(), m.c_str());
+        } else
+        {
+            fd = fopen(this->filename.c_str(), m.c_str());
+        }
+        return fd ? 0 : -1;
+    }
+
+    FILE* get()
+    {
+        return fd;
+    }
+
+    bool isValid()
+    {
+        return get();
+    }
+
+    bool isReader()
+    {
+        return true;
+    }
+
+    size_t read(void* data, size_t nsz, size_t nmemb)
+    {
+        if (!fd)
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+
+        return fread(data, nsz, nmemb, fd);
+    }
+
+
+    int getFileSize(const std::string& filename, long& sz)
+    {
+        int ret = -1;
+        //
+        auto fn = filename.c_str();
+        //
+        if (access(fn, F_OK) != 0)
+        {
+            return ret;
+        }
+        //
+        auto fd = get();
+        if (!fd)
+        {
+            OS_LOGE("open file fail: %s", fn);
+            return ret;
+        }
+        do
+        {
+            if (fseek(fd, 0, SEEK_END) != 0)
+            {
+                OS_LOGE("fseek end fail:%s", fn);
+                break;
+            }
+            sz = ftell(fd);
+            if (sz < 0)
+            {
+                OS_LOGE("ftell fail:%s", fn);
+                break;
+            }
+            if (fseek(fd, 0, SEEK_SET) != 0)
+            {
+                OS_LOGE("fseek set fail:%s", fn);
+                break;
+            }
+            ret = 0;
+        } while (0);
+        return ret;
+    }
+    long getInFileSize()
+    {
+        long sz = 0;
+        getFileSize(filename, sz);
+        return sz;
+    }
+};
+
+class CurlBufferWriter : public CurlReadWriteImpl
+{
+   private:
+    std::vector<uint8_t> buffer;
+    //
+    uint8_t* buf = NULL;
+    //
+    size_t bufsz = 0;
+    //
+    size_t offset = 0;
+
+   public:
+    CurlBufferWriter(size_t bufsz = 1024 * 128)
+    {
+        setupBufferSize(bufsz);
+        clearBuffer();
+    }
+    void setupBufferSize(size_t bufsz = 1024 * 128)
+    {
+        buffer.resize(bufsz);
+        this->buf   = buffer.data();
+        this->bufsz = buffer.size();
+    }
+    void clearBuffer()
+    {
+        if (!isValid())
         {
             return;
         }
+        memset(getBuffer(), 0, getBufferSz());
         //
-        os_log_printf(OS_LOG_DEBUG, "curl", "header out: \n%s", pdata->buf_header_out);
-        //
-        os_log_printf(OS_LOG_DEBUG, "curl", "data out: \n%s", pdata->buf_data_out);
-        //
-        os_log_printf(OS_LOG_DEBUG, "curl", "header in: \n%s", pdata->buf_header_in);
-        //
-        os_log_printf(OS_LOG_DEBUG, "curl", "data in: \n%s", pdata->buf_data_in);
+        offset = 0;
+    }
+    uint8_t* getBuffer()
+    {
+        return buf;
+    }
+    size_t getBufferSz()
+    {
+        return bufsz;
     }
 
+    bool isValid()
+    {
+        return getBuffer() && getBufferSz() > 0;
+    }
+
+    bool isReader()
+    {
+        return false;
+    }
+
+    size_t write(void* data, size_t nsz, size_t nmemb)
+    {
+        auto len = nsz * nmemb;
+        //
+        if (!isValid())
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+        //
+        if (!(offset + len <= getBufferSz()))
+        {
+            OS_LOGE("buf small");
+            return CURL_WRITEFUNC_ERROR;
+        }
+        auto dst = getBuffer() + offset;
+        auto src = (uint8_t*)data;
+        memcpy(dst, src, len);
+        offset += len;
+        return len;
+    }
+};
+
+
+class CurlExternalBufferWriter : public CurlReadWriteImpl
+{
+   private:
+    //
+    uint8_t* buf = NULL;
+    //
+    size_t bufsz = 0;
+    //
+    size_t offset = 0;
+
+   public:
+    CurlExternalBufferWriter(uint8_t* buf, size_t bufsz)
+    {
+        setupExternalBuffer(buf, bufsz);
+        clearBuffer();
+    }
+    void setupExternalBuffer(uint8_t* buf, size_t bufsz)
+    {
+        this->buf   = buf;
+        this->bufsz = bufsz;
+    }
+    void clearBuffer()
+    {
+        if (!isValid())
+        {
+            return;
+        }
+        memset(getBuffer(), 0, getBufferSz());
+        //
+        offset = 0;
+    }
+    uint8_t* getBuffer()
+    {
+        return buf;
+    }
+    size_t getBufferSz()
+    {
+        return bufsz;
+    }
+
+    bool isValid()
+    {
+        return getBuffer() && getBufferSz() > 0;
+    }
+
+    bool isReader()
+    {
+        return false;
+    }
+
+    size_t write(void* data, size_t nsz, size_t nmemb)
+    {
+        auto len = nsz * nmemb;
+        //
+        if (!isValid())
+        {
+            return CURL_WRITEFUNC_ERROR;
+        }
+        //
+        if (!(offset + len <= getBufferSz()))
+        {
+            OS_LOGE("buf small");
+            return CURL_WRITEFUNC_ERROR;
+        }
+        auto dst = getBuffer() + offset;
+        auto src = (uint8_t*)data;
+        memcpy(dst, src, len);
+        offset += len;
+        return len;
+    }
+};
+
+class CurlSetupDebug
+{
+   private:
+    //
+    size_t buf_header_out_offset;
+    char   buf_header_out[1020];
+    //
+    size_t buf_data_out_offset;
+    char   buf_data_out[4096];
+    //
+    size_t buf_header_in_offset;
+    char   buf_header_in[1024];
+    //
+    size_t buf_data_in_offset;
+    char   buf_data_in[1024 * 10];
+
+
+    //
     static int debug_func(CURL* handle, curl_infotype type, char* data, size_t size, void* clientp)
     {
-        auto* pdata = (DebugData*)clientp;
-        if (!pdata)
+        auto* pobj = (CurlSetupDebug*)clientp;
+        if (!pobj)
         {
             return -1;
         }
@@ -69,30 +643,30 @@ class CurlWrapper
         {
             case CURLINFO_HEADER_OUT:
             {
-                poffset = &pdata->buf_header_out_offset;
-                ptr     = pdata->buf_header_out + pdata->buf_header_out_offset;
-                sz      = sizeof(pdata->buf_header_out) - pdata->buf_header_out_offset;
+                poffset = &pobj->buf_header_out_offset;
+                ptr     = pobj->buf_header_out + pobj->buf_header_out_offset;
+                sz      = sizeof(pobj->buf_header_out) - pobj->buf_header_out_offset;
             }
             break;
             case CURLINFO_DATA_OUT:
             {
-                poffset = &pdata->buf_data_out_offset;
-                ptr     = pdata->buf_data_out + pdata->buf_data_out_offset;
-                sz      = sizeof(pdata->buf_data_out) - pdata->buf_data_out_offset;
+                poffset = &pobj->buf_data_out_offset;
+                ptr     = pobj->buf_data_out + pobj->buf_data_out_offset;
+                sz      = sizeof(pobj->buf_data_out) - pobj->buf_data_out_offset;
             }
             break;
             case CURLINFO_HEADER_IN:
             {
-                poffset = &pdata->buf_header_in_offset;
-                ptr     = pdata->buf_header_in + pdata->buf_header_in_offset;
-                sz      = sizeof(pdata->buf_header_in) - pdata->buf_header_in_offset;
+                poffset = &pobj->buf_header_in_offset;
+                ptr     = pobj->buf_header_in + pobj->buf_header_in_offset;
+                sz      = sizeof(pobj->buf_header_in) - pobj->buf_header_in_offset;
             }
             break;
             case CURLINFO_DATA_IN:
             {
-                poffset = &pdata->buf_data_in_offset;
-                ptr     = pdata->buf_data_in + pdata->buf_data_in_offset;
-                sz      = sizeof(pdata->buf_data_in) - pdata->buf_data_in_offset;
+                poffset = &pobj->buf_data_in_offset;
+                ptr     = pobj->buf_data_in + pobj->buf_data_in_offset;
+                sz      = sizeof(pobj->buf_data_in) - pobj->buf_data_in_offset;
             }
             break;
             default: /* in case a new one is introduced to shock us */
@@ -113,8 +687,9 @@ class CurlWrapper
         return 0;
     }
 
-
-    static void setup_curl_debug(CURL* curl, DebugData* pdata)
+   public:
+    //
+    void setup(CURL* curl)
     {
         if (!curl)
         {
@@ -123,35 +698,49 @@ class CurlWrapper
         /* the DEBUGFUNCTION has no effect until we enable VERBOSE */
         curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
         curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, debug_func);
-        curl_easy_setopt(curl, CURLOPT_DEBUGDATA, pdata);
+        curl_easy_setopt(curl, CURLOPT_DEBUGDATA, this);
     }
 
     //
-    CURL* curl = NULL;
-    //
-    DebugData* p_debug_data = NULL;
+    void dump()
+    {
+        //
+        os_log_printf(OS_LOG_DEBUG, "curl", "header out: \n%s", this->buf_header_out);
+        //
+        os_log_printf(OS_LOG_DEBUG, "curl", "data out: \n%s", this->buf_data_out);
+        //
+        os_log_printf(OS_LOG_DEBUG, "curl", "header in: \n%s", this->buf_header_in);
+        //
+        os_log_printf(OS_LOG_DEBUG, "curl", "data in: \n%s", this->buf_data_in);
+    }
+};
 
-   public:
-    int deinit()
+
+
+/**
+ * @brief Init and clean up
+ *
+ */
+class CurlWrapper
+{
+   private:
+    //
+    CURL* curl = NULL;
+
+    //
+    int _deinit()
     {
         if (curl)
         {
             curl_easy_cleanup(curl);
             curl = NULL;
         }
-        if (p_debug_data)
-        {
-            dump_debug_data(p_debug_data);
-            //
-            free(p_debug_data);
-            p_debug_data = NULL;
-        }
         return 0;
     }
-
-    int init(bool dumpInfo = false)
+    //
+    int _init()
     {
-        deinit();
+        _deinit();
         //
         curl = curl_easy_init();
         if (!curl)
@@ -159,35 +748,474 @@ class CurlWrapper
             os_log_printf(OS_LOG_ERR, "curl", "curl_easy_init");
             return -1;
         }
-        if (dumpInfo)
-        {
-            p_debug_data = (DebugData*)malloc(sizeof(DebugData));
-            //
-            memset(p_debug_data, 0, sizeof(DebugData));
-            //
-            setup_curl_debug(curl, p_debug_data);
-        }
         return 0;
     }
 
-    CurlWrapper(bool dumpInfo = false)
+
+
+   public:
+    CurlWrapper()
     {
-        init(dumpInfo);
+        _init();
     }
-    ~CurlWrapper()
+    virtual ~CurlWrapper()
     {
-        deinit();
+        _deinit();
+    }
+    //
+    bool isValid()
+    {
+        return curl ? true : false;
     }
 
     CURL* ptr()
     {
         return curl;
     }
+
+    static int perform(CURL* curl)
+    {
+        int ret = -1;
+        //
+        if (!curl)
+        {
+            return ret;
+        }
+        ret = curl_easy_perform(curl);
+        if (ret != CURLE_OK)
+        {
+        }
+
+        return 0;
+    }
+    int perform()
+    {
+        return perform(curl);
+    }
+
+    static int setUrl(CURL* curl, const std::string& url, int followLocation = 1, int ssl_verifypeer = 0)
+    {
+        int ret = -1;
+        //
+        if (!curl)
+        {
+            return ret;
+        }
+        curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, ssl_verifypeer);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, followLocation);
+
+        return 0;
+    }
+
+    int setUrl(const std::string& url, int followLocation = 1, int ssl_verifypeer = 0)
+    {
+        return setUrl(curl, url, followLocation, ssl_verifypeer);
+    }
+
+    static int setUrl(
+        CURL* curl, const std::string& url, const std::unordered_map<std::string, std::string>& query, int followLocation = 1, int ssl_verifypeer = 0)
+    {
+        int ret = -1;
+        //
+        if (!curl)
+        {
+            return ret;
+        }
+        auto surfix  = genFormDataString(query, true);
+        auto new_url = url;
+        if (!surfix.empty())
+        {
+            new_url += "?";
+            new_url += surfix;
+        }
+        curl_easy_setopt(curl, CURLOPT_URL, new_url.c_str());
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, ssl_verifypeer);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, followLocation);
+
+
+        return 0;
+    }
+    int setUrl(const std::string& url, const std::unordered_map<std::string, std::string>& query, int followLocation = 1, int ssl_verifypeer = 0)
+    {
+        return setUrl(curl, url, query, followLocation, ssl_verifypeer);
+    }
+
+    static int setupTimeout(CURL* curl, int timeout_ms = -1, int timeout_conn_ms = 5 * 1000)
+    {
+        int ret = -1;
+        //
+        if (!curl)
+        {
+            return ret;
+        }
+        //
+        if (timeout_conn_ms > 0)
+        {
+            curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, timeout_conn_ms);
+        }
+        if (timeout_ms > 0)
+        {
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, timeout_ms);
+        }
+        return 0;
+    }
+    int setupTimeout(int timeout_ms = -1, int timeout_conn_ms = 5 * 1000)
+    {
+        return setupTimeout(curl, timeout_ms, timeout_conn_ms);
+    }
+
+    static int setMethod_DELETE(CURL* curl)
+    {
+        int ret = -1;
+        //
+        if (!curl)
+        {
+            return ret;
+        }
+        curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+
+        return 0;
+    }
+    int setMethod_DELETE()
+    {
+        return setMethod_DELETE(curl);
+    }
+
+    static int setMethod_GET(CURL* curl)
+    {
+        int ret = -1;
+        //
+        if (!curl)
+        {
+            return ret;
+        }
+        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+
+        return 0;
+    }
+    int setMethod_GET()
+    {
+        return setMethod_GET(curl);
+    }
+
+    static int setMethod_POST(CURL* curl)
+    {
+        int ret = -1;
+        //
+        if (!curl)
+        {
+            return ret;
+        }
+        curl_easy_setopt(curl, CURLOPT_POST, 1);
+
+        return 0;
+    }
+    int setMethod_POST()
+    {
+        return setMethod_POST(curl);
+    }
+
+    static int setPOSTFIELDS(CURL* curl, const void* ptr, int len)
+    {
+        int ret = -1;
+        //
+        if (!curl)
+        {
+            return ret;
+        }
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, ptr);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, len);
+
+        return 0;
+    }
+    int setPOSTFIELDS(const void* ptr, int len)
+    {
+        return setPOSTFIELDS(curl, ptr, len);
+    }
+
+    static std::string genFormDataString(const std::unordered_map<std::string, std::string>& formDatas, bool b_url_escape = false)
+    {
+        std::string queries;
+        //
+        int cnt = 0;
+        //
+        for (auto& e : formDatas)
+        {
+            auto tmpkey = e.first;
+            auto tmpval = e.second;
+            //
+            char* ptr_key = NULL;
+            char* ptr_val = NULL;
+            if (b_url_escape)
+            {
+                ptr_key = curl_escape(tmpkey.c_str(), tmpkey.length());
+                ptr_val = curl_escape(tmpval.c_str(), tmpval.length());
+            }
+
+            if (cnt)
+            {
+                queries += "&";
+            }
+            queries += (ptr_key ? std::string(ptr_key) : e.first) + "=" + (ptr_val ? std::string(ptr_val) : e.second);
+
+            ++cnt;
+            if (ptr_key)
+            {
+                curl_free(ptr_key);
+            }
+            if (ptr_val)
+            {
+                curl_free(ptr_val);
+            }
+        }
+
+        return queries;
+    }
+
+    static int setupHeaders(CURL* curl, CurlSlist& slistHeaders)
+    {
+        int ret = -1;
+        //
+        if (!curl)
+        {
+            return ret;
+        }
+
+        if (slistHeaders.ptr())
+        {
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slistHeaders.ptr());
+        }
+
+        return 0;
+    }
+    int setupHeaders(CurlSlist& slistHeaders)
+    {
+        return setupHeaders(curl, slistHeaders);
+    }
 };
 
-#define CURL_WRAPPER(tag, en_dump)  \
-    CurlWrapper tag##_cpp(en_dump); \
-    auto        tag = tag##_cpp.ptr();
+
+class CurlFileDownloader : public PthreadWrapper
+{
+   private:
+    //
+    int m_errcode = -1;
+    //
+    CurlFileWriter m_file_writer;
+    //
+    CurlSetupReadWrite m_writer;
+    //
+    std::string url, file;
+    //
+    int timeout_ms, timeout_conn_ms;
+    //
+    int download(const std::string& url, const std::string& file, int timeout_ms, int timeout_conn_ms)
+    {
+        int ret = -1;
+        //
+        CurlWrapper m_curl_ctx;
+        //
+        auto curl = m_curl_ctx.ptr();
+        if (!curl)
+        {
+            return ret;
+        }
+        //
+        m_file_writer.open(file);
+        m_writer.setupIO(m_curl_ctx.ptr(), &m_file_writer);
+        //
+        CurlWrapper::setUrl(curl, url);
+        //
+        CurlWrapper::setupTimeout(curl, timeout_ms, timeout_conn_ms);
+        //
+        ret = CurlWrapper::perform(curl);
+
+        return ret;
+    }
+    bool threadLoop() override
+    {
+        if (exitPending())
+        {
+            return false;
+        }
+        download(url, file, timeout_ms, timeout_conn_ms);
+        return false;
+    }
+
+   public:
+    CurlFileDownloader() = default;
+    CurlFileDownloader(const std::string& url, const std::string& file, int timeout_ms = -1, int timeout_conn_ms = -1)
+    {
+        setupUrl(url);
+        setupFile(file);
+        setupTimeout(timeout_ms);
+        setupConnTimeout(timeout_conn_ms);
+    }
+
+    void setupUrl(const std::string& url)
+    {
+        this->url = url;
+    }
+    void setupFile(const std::string& file)
+    {
+        this->file = file;
+    }
+    void setupTimeout(int timeout_ms)
+    {
+        this->timeout_ms = timeout_ms;
+    }
+    void setupConnTimeout(int timeout_conn_ms)
+    {
+        this->timeout_conn_ms = timeout_conn_ms;
+    }
+    void requestExit() override
+    {
+        m_writer.cancel();
+    }
+    
+    bool run(const char* task_name = NULL)
+    {
+        m_errcode = -1;
+        //
+        return PthreadWrapper::run(task_name);
+    }
+    int getErrcode()
+    {
+        return m_errcode;
+    }
+
+    CurlSetupReadWrite* getWriter()
+    {
+        return &m_writer;
+    }
+};
+
+
+class ScanJsonStringCurl
+{
+   private:
+    //
+    ScanJsonStringInplace scanner;
+    //
+    size_t buf_data_in_offset;
+    //
+    std::vector<char> buf_data_in;
+    //
+    void (*js_handler)(void* d, char* js) = NULL;
+    void* js_handler_userdata             = NULL;
+    //
+    //
+    static size_t curl_http_write_cb(void* data, size_t nsz, size_t nmemb, void* clientp)
+    {
+        auto* pobj = (ScanJsonStringCurl*)clientp;
+        if (!pobj)
+        {
+            return -1;
+        }
+        auto size = nsz * nmemb;
+        //
+        char*   ptr     = NULL;
+        size_t* poffset = NULL;
+        size_t  sz      = 0;
+        //
+        poffset = &pobj->buf_data_in_offset;
+        ptr     = pobj->buf_data_in.data() + pobj->buf_data_in_offset;
+        sz      = pobj->buf_data_in.size() - pobj->buf_data_in_offset;
+        //
+        if (!ptr || !poffset || sz <= 1)
+        {
+            return 0;
+        }
+        //
+        sz -= 1;
+        //
+        size_t cpsz = size > sz ? sz : size;
+        //
+        memcpy(ptr, data, cpsz);
+        //
+        if (*poffset == 0)
+        {
+            pobj->scanner.init(ptr);
+        }
+        //
+        *poffset += cpsz;
+        //
+        size_t scan_cnt = 0;
+        //
+        do
+        {
+            char* js_begin = NULL;
+            char* js_end   = NULL;
+            //
+            auto cnt = pobj->scanner.scan(cpsz - scan_cnt, &js_begin, &js_end);
+            if (js_begin)
+            {
+                auto len = js_end + 1 - js_begin;
+                //
+                std::vector<char> tmpBuf(len + 1);
+                //
+                memcpy(tmpBuf.data(), js_begin, len);
+                tmpBuf.data()[len] = '\0';
+                //
+                OS_LOGV("%s", tmpBuf.data());
+
+
+                if (pobj->js_handler)
+                {
+                    pobj->js_handler(pobj->js_handler_userdata, tmpBuf.data());
+                } else
+                {
+                    //
+                    auto js = nlohmann_js_parse(tmpBuf.data());
+                    //
+                    OS_LOGD("%s", js.dump(4).c_str());
+                }
+            }
+            scan_cnt += cnt;
+        } while (scan_cnt < cpsz);
+
+        return size;
+    }
+
+   public:
+    ScanJsonStringCurl()
+    {
+    }
+    ScanJsonStringCurl(CurlWrapper& curl_cpp, size_t bufsz = 128 * 1024)
+    {
+        setup_curl(curl_cpp.ptr(), bufsz);
+    }
+    char* getResp()
+    {
+        return buf_data_in.data();
+    }
+    void dumpResp()
+    {
+        //
+        OS_PRINT("data in: \n%s", getResp());
+    }
+    void setup_hdl(void (*JsHdl)(void* d, char* js) = NULL, void* d = NULL)
+    {
+        js_handler          = JsHdl;
+        js_handler_userdata = d;
+    }
+    void setup_curl(CURL* curl, size_t bufsz = 128 * 1024)
+    {
+        if (!curl)
+        {
+            return;
+        }
+        //
+        buf_data_in_offset = 0;
+        buf_data_in.resize(bufsz);
+        memset(buf_data_in.data(), 0, buf_data_in.size());
+        //
+
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_http_write_cb);
+    }
+};
 
 
 #define DEFAULT_CURL_CONNECT_TIMEOUT_MS (5 * 1000)
@@ -198,7 +1226,6 @@ class CurlWrapper
  *
  * @param [in] url
  * @param [in] outputfile
- * @param [out] wc
  * @param timeout_conn_ms : Time-out connect operations after this amount of
  miliseconds, if connects are OK within this time, then fine... This only aborts
  the connect phase.
@@ -213,33 +1240,8 @@ class CurlWrapper
  * - 0 : success
  * - other : err
  */
-int curl_download_file(const char* url,
-                       const char* outputfile,
-                       size_t*     wc              = NULL,
-                       int         timeout_conn_ms = DEFAULT_CURL_CONNECT_TIMEOUT_MS,
-                       int         timeout_ms      = 0,
-                       int         en_debug        = 0);
-
-/**
- * @brief
- *
- * @param [in] url
- * @param [out] sz
- * @param timeout_conn_ms : Time-out connect operations after this amount of
- miliseconds, if connects are OK within this time, then fine... This only aborts
- the connect phase.
- * - 0 : no timeout
- * - positive : timeout connect url
- * @param timeout_ms : Time-out the read operation after this amount of
- miliseconds
- * - 0 : no timeout
- * - positive : timeout in miliseconds
- * @param en_debug
- * @return int :
- * - 0 : success
- * - other : err
- */
-int curl_get_file_size(const char* url, size_t* sz, int timeout_conn_ms = DEFAULT_CURL_CONNECT_TIMEOUT_MS, int timeout_ms = 0, int en_debug = 0);
+int curl_download_file(
+    const char* url, const char* outputfile, int timeout_conn_ms = DEFAULT_CURL_CONNECT_TIMEOUT_MS, int timeout_ms = 0, int en_debug = 0);
 
 /**
  * @brief
