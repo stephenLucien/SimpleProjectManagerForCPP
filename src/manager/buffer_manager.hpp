@@ -37,7 +37,7 @@ class BufferManager : public PthreadWrapper
 
     void clear();
 
-    BufferItem getBuffer();
+    BufferItem getBuffer(int timeout_ms = -1);
 
     void pushData(BufferItem buffer);
 

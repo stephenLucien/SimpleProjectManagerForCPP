@@ -36,64 +36,188 @@ class PthreadMutex
     PthreadMutex(const PthreadMutex&)            = delete;  // Disable copy constructor
     PthreadMutex& operator=(const PthreadMutex&) = delete;  // Disable copy
 
-    void w_lock()
+    /**
+     * @brief
+     *
+     * @return int
+     * - 0 : success
+     */
+    int w_lock()
     {
-        pthread_rwlock_wrlock(&rwlock);
+        // \ref https://pubs.opengroup.org/onlinepubs/007904875/functions/pthread_rwlock_wrlock.html
+        return pthread_rwlock_wrlock(&rwlock);
     }
-    void r_lock()
+    /**
+     * @brief
+     *
+     * @return int
+     * - 0 : success
+     */
+    int w_trylock()
     {
-        pthread_rwlock_rdlock(&rwlock);
+        // \ref https://pubs.opengroup.org/onlinepubs/007904875/functions/pthread_rwlock_trywrlock.html
+        return pthread_rwlock_trywrlock(&rwlock);
     }
-    void unlock()
+    /**
+     * @brief
+     *
+     * @param timeout_ms
+     * @return int
+     * - 0 : success
+     */
+    int w_timedlock(int timeout_ms)
     {
-        pthread_rwlock_unlock(&rwlock);
+        if (timeout_ms == 0)
+        {
+            return w_trylock();
+        }
+        if (timeout_ms < 0)
+        {
+            return w_lock();
+        }
+        struct timespec abstime;
+        //
+        abstime.tv_sec = timeout_ms / 1000;
+        //
+        timeout_ms %= 1000;
+        //
+        abstime.tv_nsec = timeout_ms * 1000 * 1000;
+        // \ref https://pubs.opengroup.org/onlinepubs/007904875/functions/pthread_rwlock_timedwrlock.html
+        return pthread_rwlock_timedwrlock(&rwlock, &abstime);
+    }
+    /**
+     * @brief
+     *
+     * @return int
+     * - 0 : success
+     */
+    int r_lock()
+    {
+        // \ref https://pubs.opengroup.org/onlinepubs/007904875/functions/pthread_rwlock_rdlock.html
+        return pthread_rwlock_rdlock(&rwlock);
+    }
+    /**
+     * @brief
+     *
+     * @return int
+     * - 0 : success
+     */
+    int r_trylock()
+    {
+        // \ref https://pubs.opengroup.org/onlinepubs/007904875/functions/pthread_rwlock_tryrdlock.html
+        return pthread_rwlock_tryrdlock(&rwlock);
+    }
+    /**
+     * @brief
+     *
+     * @param timeout_ms
+     * @return int
+     * - 0 : success
+     */
+    int r_timedlock(int timeout_ms)
+    {
+        if (timeout_ms == 0)
+        {
+            return r_trylock();
+        }
+        if (timeout_ms < 0)
+        {
+            return r_lock();
+        }
+        struct timespec abstime;
+        //
+        abstime.tv_sec = timeout_ms / 1000;
+        //
+        timeout_ms %= 1000;
+        //
+        abstime.tv_nsec = timeout_ms * 1000 * 1000;
+        // \ref https://pubs.opengroup.org/onlinepubs/007904875/functions/pthread_rwlock_timedrdlock.html
+        return pthread_rwlock_timedrdlock(&rwlock, &abstime);
+    }
+    int unlock()
+    {
+        return pthread_rwlock_unlock(&rwlock);
     }
 
 
     class Writelock
     {
        public:
-        inline Writelock(PthreadMutex& mutex) : mLock(mutex)
+        inline Writelock(PthreadMutex& mutex, int timeout_ms = -1) : mLock(mutex)
         {
-            mLock.w_lock();
+            ret = mLock.w_timedlock(timeout_ms);
         }
 
-        inline Writelock(PthreadMutex* mutex) : mLock(*mutex)
+        inline Writelock(PthreadMutex* mutex, int timeout_ms = -1) : mLock(*mutex)
         {
-            mLock.w_lock();
+            ret = mLock.w_timedlock(timeout_ms);
         }
 
         inline ~Writelock()
         {
-            mLock.unlock();
+            // only release mutex on got mutex
+            if (got())
+            {
+                mLock.unlock();
+            }
+        }
+
+        /**
+         * @brief
+         *
+         * @return true : got mutex
+         * @return false : got mutex fail
+         */
+        bool got()
+        {
+            return ret == 0;
         }
 
        private:
+        //
         PthreadMutex& mLock;
+        //
+        int ret = -1;
     };
-
-
 
     class Readlock
     {
        public:
-        inline Readlock(PthreadMutex& mutex) : mLock(mutex)
+        inline Readlock(PthreadMutex& mutex, int timeout_ms = -1) : mLock(mutex)
         {
-            mLock.r_lock();
+            ret = mLock.r_timedlock(timeout_ms);
         }
 
-        inline Readlock(PthreadMutex* mutex) : mLock(*mutex)
+        inline Readlock(PthreadMutex* mutex, int timeout_ms = -1) : mLock(*mutex)
         {
-            mLock.r_lock();
+            ret = mLock.r_timedlock(timeout_ms);
         }
 
         inline ~Readlock()
         {
-            mLock.unlock();
+            // only release mutex on got mutex
+            if (got())
+            {
+                mLock.unlock();
+            }
+        }
+
+        /**
+         * @brief
+         *
+         * @return true : got mutex
+         * @return false : got mutex fail
+         */
+        bool got()
+        {
+            return ret == 0;
         }
 
        private:
+        //
         PthreadMutex& mLock;
+        //
+        int ret = -1;
     };
 };
 
@@ -346,7 +470,6 @@ class PthreadWrapper
         }
     }
 
-
     /**
      * @brief sleep for milisecond
      *
@@ -356,6 +479,33 @@ class PthreadWrapper
     {
         msec = msec >= 0 ? msec : 0;
         usleep(msec * 1000);
+    }
+
+    void msleep_sliced(int msec, int interval_ms = 10)
+    {
+        if (msec < 0)
+        {
+            msec = 0;
+        }
+        if (interval_ms <= 0)
+        {
+            interval_ms = 10;
+        }
+        auto cnt = msec / interval_ms;
+        auto rem = msec % interval_ms;
+        for (; cnt; --cnt)
+        {
+            if (_exitPending())
+            {
+                return;
+            }
+            if (exitPending())
+            {
+                return;
+            }
+            msleep(interval_ms);
+        }
+        msleep(rem);
     }
 
     /**
@@ -393,14 +543,27 @@ class PthreadWrapper
         return begin_loop();
     }
 
+    bool tryRun(const char* task_name = NULL)
+    {
+        if (isRunning())
+        {
+            return false;
+        }
+        return run(task_name);
+    }
+
     bool isRunning()
     {
         return is_running;
     }
 
-    void requestExit()
+    void _requestExit()
     {
         req_exit = 1;
+    }
+
+    virtual void requestExit()
+    {
     }
 
     /**
@@ -501,13 +664,14 @@ class PthreadWrapper
      */
     bool requestExitAndWait(int32_t timeout_ms = INT32_MAX)
     {
-        if (is_running)
-        {
-            OS_LOGV("timeout_ms=%" PRId32 "", timeout_ms);
-            requestExit();
-            //
-            wait_loop(timeout_ms);
-        }
+        OS_LOGV("timeout_ms=%" PRId32 "", timeout_ms);
+        //
+        _requestExit();
+        //
+        requestExit();
+        //
+        wait_loop(timeout_ms);
+
         return !(is_running);
     }
 

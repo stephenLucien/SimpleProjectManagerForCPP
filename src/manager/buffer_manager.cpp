@@ -6,8 +6,8 @@
 #include <vector>
 
 //
-#include "utils/os_tools.h"
 #include "cpp_helper/cpphelper_pthread.hpp"
+#include "utils/os_tools.h"
 
 BufferManager::BufferManager(int slice_sz, int total_cnt, BufferItemHDL func, void *func_data, int cb_duration_ms)
 {
@@ -72,11 +72,15 @@ void BufferManager::clear()
 }
 
 
-BufferManager::BufferItem BufferManager::getBuffer()
+BufferManager::BufferItem BufferManager::getBuffer(int timeout_ms)
 {
     BufferItem buffer;
     //
-    PthreadMutex::Writelock _l(availabe_buffers_lock);
+    PthreadMutex::Writelock _l(availabe_buffers_lock, timeout_ms);
+    if (!_l.got())
+    {
+        return buffer;
+    }
     if (availabe_buffers.empty())
     {
         return buffer;
