@@ -2,6 +2,7 @@
 #define __BUFFER_MANAGER_H__
 
 //
+#include <cstdlib>
 #include <list>
 #include <vector>
 
@@ -13,19 +14,31 @@ class BufferManager : public PthreadWrapper
    public:
     class BufferItem
     {
+       private:
+        //
+        void *pool = NULL;
+        //
+        bool isCopy = false;
+        //
+        void init(void *buf = NULL, int bufsz = 0, bool b_copy = false, void *pool = NULL);
+        //
+        void deinit();
+
        public:
-        BufferItem(void *buf = NULL, int bufsz = 0) : buf(buf), bufsz(bufsz)
-        {
-        }
-        ~BufferItem()
-        {
-        }
-        bool isValid()
-        {
-            return buf && bufsz > 0;
-        }
-        void *buf;
-        int   bufsz;
+        //
+        BufferItem(void *buf = NULL, int bufsz = 0, bool b_copy = false, void *pool = NULL);
+        //
+        virtual ~BufferItem();
+        //
+        void *getPool();
+        //
+        void dump();
+
+        bool isValid();
+        //
+        void *buf = NULL;
+        //
+        int bufsz = 0;
     };
 
 
@@ -33,7 +46,7 @@ class BufferManager : public PthreadWrapper
 
    public:
     BufferManager(int slice_sz = 4096, int total_cnt = 20, BufferItemHDL func = NULL, void *func_data = NULL, int cb_duration_ms = 20);
-    ~BufferManager() override;
+    virtual ~BufferManager();
 
     void clear();
 

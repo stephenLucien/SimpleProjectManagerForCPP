@@ -15,9 +15,15 @@ class EventMarker
     uint64_t touched_ts = 0;
 
    public:
-    EventMarker(uint64_t timeout_ms = 2000) : timeout_ms(timeout_ms)
+    EventMarker(uint64_t timeout_ms = 2000)
     {
+        set_timeout_thr(timeout_ms);
         touch();
+    }
+
+    void set_timeout_thr(uint64_t timeout_ms)
+    {
+        this->timeout_ms = timeout_ms;
     }
 
     uint64_t get_timeout_thr()
@@ -38,6 +44,13 @@ class EventMarker
     {
         touched_ts = timestamp_ms();
     }
+
+    //
+    uint64_t get_touch_ts()
+    {
+        return touched_ts;
+    }
+
 
     // timelapse compare to given timestamp
     static uint64_t timelapse_ms(uint64_t cmpTs)
