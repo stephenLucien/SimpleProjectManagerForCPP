@@ -32,7 +32,7 @@ class BufferManager : public PthreadWrapper
         //
         void *getPool();
         //
-        void dump();
+        void dump(const std::string &tagstr = std::string());
 
         bool isValid();
         //
@@ -48,20 +48,17 @@ class BufferManager : public PthreadWrapper
     BufferManager(int slice_sz = 4096, int total_cnt = 20, BufferItemHDL func = NULL, void *func_data = NULL, int cb_duration_ms = 20);
     virtual ~BufferManager();
 
-    void clear();
+    int dropCache();
 
+    /**
+     * @brief should pushData before exit thread
+     *
+     * @param timeout_ms
+     * @return BufferItem
+     */
     BufferItem getBuffer(int timeout_ms = -1);
 
     void pushData(BufferItem buffer);
-
-
-
-    BufferItem popData();
-
-    void ReleaseBuffer(BufferItem buffer);
-
-
-    bool tryRun();
 
    private:
     std::vector<uint8_t> buffer;
@@ -84,9 +81,13 @@ class BufferManager : public PthreadWrapper
     //
     int cb_duration_ms;
     //
-    void _clearUsed();
+    int _setup(int slice_sz, int total_cnt, BufferItemHDL func, void *func_data, int cb_duration_ms);
     //
-    void _genBuffers();
+    BufferItem popData();
+    //
+    void ReleaseBuffer(BufferItem buffer);
+    //
+    bool readyToRun() override;
     //
     bool threadLoop(void) override;
 };

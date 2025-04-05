@@ -4,12 +4,15 @@
 
 //
 #include "manager/buffer_manager.hpp"
+#include "manager/cleanup_manager.h"
 #include "manager/test_manager.h"
 #include "utils/os_tools.h"
 
 #define ITEM_DATA_LEN  (1020)
 #define CB_DURATION_MS (1000)
 
+namespace
+{
 class MyDataItem
 {
    public:
@@ -59,35 +62,75 @@ static void MyDataItem_handler(void *userdata, BufferManager::BufferItem buffer)
 
     OS_PRINT("len=%lu, data:%s", *data.pdatalen, (char *)data.pdata);
 }
-
+//
 static BufferManager m_buffer(sizeof(uint32_t) + ITEM_DATA_LEN, 32, MyDataItem_handler, NULL, CB_DURATION_MS);
+
+class BufferTester : public PthreadWrapper
+{
+   private:
+    bool readyToRun() override
+    {
+        return true;
+    };
+    bool threadLoop() override
+    {
+        msleep_sliced(CB_DURATION_MS * 4);
+        if (exitPending())
+        {
+            return false;
+        }
+        push(std::to_string(rand()));
+        return true;
+    }
+
+   public:
+    BufferTester()
+    {
+        setTaskName("BufferTester");
+    }
+    static int push(const std::string &test_string)
+    {
+        //
+        auto buf = m_buffer.getBuffer();
+        if (!buf.isValid())
+        {
+            return -1;
+        }
+        MyDataItem data(buf);
+        if (data.isValid())
+        {
+            snprintf((char *)data.pdata, ITEM_DATA_LEN, "%s", test_string.c_str());
+            *data.pdatalen = test_string.length();
+        }
+        m_buffer.pushData(buf);
+        return 0;
+    }
+};
+//
+static BufferTester m_tester;
+
+}  // namespace
+
+static int buffertest_end(int num, void *data)
+{
+    //
+    OS_LOGD("buffer manager test end0.");
+    m_tester.requestExitAndWait();
+    m_buffer.requestExitAndWait();
+    //
+    OS_LOGD("buffer manager test end1.");
+    return 0;
+}
+REG_CLEANUP_FUNC(buffertest_end, buffertest_end, NULL)
 
 int test_buffer_manager(int reason, void *userdata)
 {
-    std::string test_string = "hello";
-    //
-    m_buffer.tryRun();
     //
     OS_LOGD("buffer manager test begin.");
     //
-    auto buf = m_buffer.getBuffer();
-    if (!buf.isValid())
-    {
-        return -1;
-    }
-    MyDataItem data(buf);
-    if (data.isValid())
-    {
-        snprintf((char *)data.pdata, ITEM_DATA_LEN, "%s", test_string.c_str());
-        *data.pdatalen = test_string.length();
-    }
-    m_buffer.pushData(buf);
+    m_buffer.tryRun();
     //
-    OS_LOGD("buffer manager wait.");
-    //
-    usleep(1000 * CB_DURATION_MS * 2);
-    //
-    OS_LOGD("buffer manager end.");
+    m_tester.tryRun();
 
     return 0;
 }

@@ -72,9 +72,9 @@ bool BufferManager::BufferItem::isValid()
 {
     return buf && bufsz > 0;
 }
-void BufferManager::BufferItem::dump()
+void BufferManager::BufferItem::dump(const std::string &tagstr)
 {
-    OS_LOGV("[p:%p%s] ptr: %p, sz: %d", pool, isCopy ? ",copied" : "", buf, bufsz);
+    OS_LOGV("<%s>[p:%p%s] ptr: %p, sz: %d", tagstr.c_str(), pool, isCopy ? ",copied" : "", buf, bufsz);
 }
 
 
@@ -82,6 +82,17 @@ void BufferManager::BufferItem::dump()
 BufferManager::BufferManager(int slice_sz, int total_cnt, BufferItemHDL func, void *func_data, int cb_duration_ms)
 {
     setTaskName("BufferManager");
+    //
+    _setup(slice_sz, total_cnt, func, func_data, cb_duration_ms);
+}
+
+BufferManager::~BufferManager()
+{
+}
+
+
+int BufferManager::_setup(int slice_sz, int total_cnt, BufferItemHDL func, void *func_data, int cb_duration_ms)
+{
     //
     this->slice_sz = slice_sz;
     this->total_sz = slice_sz * total_cnt;
@@ -91,62 +102,49 @@ BufferManager::BufferManager(int slice_sz, int total_cnt, BufferItemHDL func, vo
     this->cb_data = func_data;
     //
     this->cb_duration_ms = cb_duration_ms;
-}
-
-BufferManager::~BufferManager()
-{
-    {
-        PthreadMutex::Writelock _l(availabe_buffers_lock);
-        availabe_buffers.clear();
-    }
-    {
-        PthreadMutex::Writelock _l(used_buffers_lock);
-        used_buffers.clear();
-    }
-
-    buffer.clear();
-}
-
-void BufferManager::_clearUsed()
-{
+    //
     used_buffers.clear();
-}
-
-void BufferManager::_genBuffers()
-{
+    //
     buffer.resize(total_sz);
-
-    OS_LOGV("bufferSize: %p, %d", buffer.data(), total_sz);
+    //
     availabe_buffers.clear();
     for (int pos = 0; pos + slice_sz <= total_sz; pos += slice_sz)
     {
         availabe_buffers.emplace_back(BufferItem(buffer.data() + pos, slice_sz, false, buffer.data()));
     }
-    OS_LOGV("BufferItem count: %zu, slice_sz: %d", availabe_buffers.size(), slice_sz);
-#if 0
-    for (auto &e : availabe_buffers)
-    {
-        e.dump();
-    }
-#endif
+    return 0;
 }
 
-void BufferManager::clear()
+
+int BufferManager::dropCache()
 {
+    std::list<BufferItem> tmpUsedBuffers;
     {
+        //
         PthreadMutex::Writelock _l(used_buffers_lock);
-        _clearUsed();
+        tmpUsedBuffers = used_buffers;
+        used_buffers.clear();
     }
-    {
-        PthreadMutex::Writelock _l(availabe_buffers_lock);
-        _genBuffers();
-    }
-}
 
+    {
+        //
+        PthreadMutex::Writelock _l(availabe_buffers_lock);
+        for (auto &e : tmpUsedBuffers)
+        {
+            availabe_buffers.push_back(e);
+        }
+    }
+    return 0;
+}
 
 BufferManager::BufferItem BufferManager::getBuffer(int timeout_ms)
 {
     BufferItem buffer;
+    //
+    if (!isRunning())
+    {
+        return buffer;
+    }
     //
     PthreadMutex::Writelock _l(availabe_buffers_lock, timeout_ms);
     if (!_l.got())
@@ -186,6 +184,10 @@ BufferManager::BufferItem BufferManager::popData()
     BufferItem buffer = {0};
     //
     PthreadMutex::Writelock _l(used_buffers_lock);
+    if (!_l.got())
+    {
+        return buffer;
+    }
     if (used_buffers.empty())
     {
         return buffer;
@@ -199,6 +201,10 @@ BufferManager::BufferItem BufferManager::popData()
 
 void BufferManager::ReleaseBuffer(BufferItem buffer)
 {
+    if (!buffer.isValid())
+    {
+        return;
+    }
     PthreadMutex::Writelock _l(availabe_buffers_lock);
     if (buffer.getPool() == this->buffer.data())
     {
@@ -212,9 +218,46 @@ void BufferManager::ReleaseBuffer(BufferItem buffer)
     // OS_LOGV("%s %p", __PRETTY_FUNCTION__, buffer.buf);
 }
 
+bool BufferManager::readyToRun()
+{
+    dropCache();
+    OS_LOGD("bufferSize: %p, %d", buffer.data(), total_sz);
+    int cnt = 0;
+    if (1)
+    {
+        //
+        PthreadMutex::Writelock _l(availabe_buffers_lock);
+        //
+        int i = 0;
+        for (auto &e : availabe_buffers)
+        {
+            ++i;
+            auto tagstr = std::string("a") + std::to_string(i);
+            e.dump(tagstr);
+        }
+        cnt += i;
+    }
+    if (1)
+    {
+        //
+        PthreadMutex::Writelock _l(used_buffers_lock);
+        //
+        int i = 0;
+        for (auto &e : used_buffers)
+        {
+            ++i;
+            auto tagstr = std::string("u") + std::to_string(i);
+            e.dump(tagstr);
+        }
+        cnt += i;
+    }
+    OS_LOGD("cnt=%d, total_sz=%d, slice_sz=%d, expect=%d", cnt, total_sz, slice_sz, slice_sz ? total_sz / slice_sz : 0);
+    return true;
+}
+
 bool BufferManager::threadLoop(void)
 {
-    sleep(cb_duration_ms);
+    msleep_sliced(cb_duration_ms);
     if (exitPending())
     {
         return false;
@@ -243,18 +286,4 @@ bool BufferManager::threadLoop(void)
     } while (!exitPending());
 
     return true;
-}
-
-
-bool BufferManager::tryRun()
-{
-    bool ret = false;
-
-    if (isRunning())
-    {
-        return ret;
-    }
-
-    clear();
-    return run();
 }
