@@ -74,34 +74,29 @@ class CurlSlist
 class CurlReadWriteImpl
 {
    public:
-    CurlReadWriteImpl()
-    {
-    }
-    virtual ~CurlReadWriteImpl()
-    {
-    }
-    virtual bool isValid()
-    {
-        return true;
-    }
+    CurlReadWriteImpl()  = default;
+    ~CurlReadWriteImpl() = default;
+
+    // TODO: should be implemented by derived class
+    virtual bool isValid() = 0;
 
     virtual int open()
     {
         return 0;
     }
 
-    virtual bool isReader()
-    {
-        return false;
-    }
+    // TODO: should be implemented by derived class
+    virtual bool isReader() = 0;
 
     virtual size_t write(void* data, size_t nsz, size_t nmemb)
     {
+        OS_LOGE("this function should be implemented by writer!");
         return CURL_WRITEFUNC_ERROR;
     }
 
     virtual size_t read(void* data, size_t nsz, size_t nmemb)
     {
+        OS_LOGE("this function should be implemented by reader!");
         return CURL_WRITEFUNC_ERROR;
     }
 
@@ -112,6 +107,7 @@ class CurlReadWriteImpl
 
     virtual long getInFileSize()
     {
+        OS_LOGE("this function should be implemented by reader!");
         long sz = 0;
         return sz;
     }
