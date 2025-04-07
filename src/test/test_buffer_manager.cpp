@@ -113,6 +113,10 @@ static BufferTester m_tester;
 
 static int buffertest_end(int num, void *data)
 {
+    if (!(m_tester.isRunning() || m_buffer.isRunning()))
+    {
+        return 0;
+    }
     //
     OS_LOGD("buffer manager test end0.");
     m_tester.requestExitAndWait();

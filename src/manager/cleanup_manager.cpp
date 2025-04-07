@@ -5,8 +5,15 @@
 //
 #include <string>
 #include <unordered_map>
-#include "utils/os_tools.h"
 #include "cpp_helper/cpphelper_pthread.hpp"
+#include "utils/os_tools.h"
+
+//
+#if defined(OS_LOG_TAG)
+    #undef OS_LOG_TAG
+    #define OS_LOG_TAG "CleanM"
+#endif
+
 
 namespace
 {

@@ -20,7 +20,7 @@
 #include "nlohmann/json.hpp"
 
 //
-#include "utils/os_tools.h"
+#include "utils/os_tools_log.h"
 
 #ifndef CURL_WRITEFUNC_ERROR
     #define CURL_WRITEFUNC_ERROR (0xFFFFFFFF)
@@ -85,6 +85,11 @@ class CurlReadWriteImpl
         return true;
     }
 
+    virtual int open()
+    {
+        return 0;
+    }
+
     virtual bool isReader()
     {
         return false;
@@ -98,6 +103,11 @@ class CurlReadWriteImpl
     virtual size_t read(void* data, size_t nsz, size_t nmemb)
     {
         return CURL_WRITEFUNC_ERROR;
+    }
+
+    virtual int close()
+    {
+        return 0;
     }
 
     virtual long getInFileSize()
@@ -224,6 +234,10 @@ class CurlSetupReadWrite
         {
             return -1;
         }
+        if (m_io->open() != 0)
+        {
+            return -1;
+        }
         if (!m_io->isValid())
         {
             return -1;
@@ -247,6 +261,14 @@ class CurlSetupReadWrite
         curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
         curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
         return 0;
+    }
+    int closeIO()
+    {
+        if (!m_io)
+        {
+            return -1;
+        }
+        return m_io->close();
     }
     void setPrint(bool enbale)
     {
@@ -290,27 +312,14 @@ class CurlFileWriter : public CurlReadWriteImpl
    private:
     //
     FILE* fd = NULL;
-
-   public:
-    virtual ~CurlFileWriter()
-    {
-        close();
-    }
-    CurlFileWriter() = default;
-    CurlFileWriter(const std::string& f, const std::string& m = "wb", bool isPipe = false)
-    {
-        open(f, m, isPipe);
-    }
-    int close()
-    {
-        if (fd)
-        {
-            fclose(fd);
-            fd = NULL;
-        }
-        return 0;
-    }
-    int open(const std::string& f, const std::string& m = "wb", bool isPipe = false)
+    //
+    std::string filepath;
+    //
+    std::string filemode;
+    //
+    bool bOpenPipe = false;
+    //
+    int open(const std::string& f, const std::string& m, bool isPipe)
     {
         close();
         if (isPipe)
@@ -323,22 +332,65 @@ class CurlFileWriter : public CurlReadWriteImpl
         return fd ? 0 : -1;
     }
 
+   public:
+    virtual ~CurlFileWriter()
+    {
+        close();
+    }
+    CurlFileWriter(const std::string& f = std::string(), const std::string& m = "wb", bool isPipe = false)
+    {
+        setFilePath(f);
+        setFileMode(m);
+        setPipeOrFile(isPipe);
+    }
+    // Disable copy constructor
+    CurlFileWriter(const CurlFileWriter&) = delete;
+    // Disable copy
+    CurlFileWriter& operator=(const CurlFileWriter&) = delete;
+
+    void setFilePath(const std::string& filepath)
+    {
+        this->filepath = filepath;
+    }
+    void setFileMode(const std::string& filemode)
+    {
+        this->filemode = filemode;
+    }
+    void setPipeOrFile(bool isPipe)
+    {
+        this->bOpenPipe = isPipe;
+    }
+
+    int open() override
+    {
+        return open(filepath, filemode, bOpenPipe);
+    }
+    int close() override
+    {
+        if (fd)
+        {
+            fclose(fd);
+            fd = NULL;
+        }
+        return 0;
+    }
+
     FILE* get()
     {
         return fd;
     }
 
-    bool isValid()
+    bool isValid() override
     {
         return get();
     }
 
-    bool isReader()
+    bool isReader() override
     {
         return false;
     }
 
-    size_t write(void* data, size_t nsz, size_t nmemb)
+    size_t write(void* data, size_t nsz, size_t nmemb) override
     {
         if (!fd)
         {
@@ -356,19 +408,58 @@ class CurlFileReader : public CurlReadWriteImpl
     //
     FILE* fd = NULL;
     //
-    std::string filename;
+    std::string filepath;
+    //
+    std::string filemode;
+    //
+    bool bOpenPipe = false;
+    //
+    int open(const std::string& f, const std::string& m, bool isPipe)
+    {
+        close();
+        if (isPipe)
+        {
+            fd = popen(f.c_str(), m.c_str());
+        } else
+        {
+            fd = fopen(f.c_str(), m.c_str());
+        }
+        return fd ? 0 : -1;
+    }
 
    public:
     virtual ~CurlFileReader()
     {
         close();
     }
-    CurlFileReader() = default;
-    CurlFileReader(const std::string& f, const std::string& m = "rb", bool isPipe = false)
+    CurlFileReader(const std::string& f = std::string(), const std::string& m = "rb", bool isPipe = false)
     {
-        open(f, m, isPipe);
+        setFilePath(f);
+        setFileMode(m);
+        setPipeOrFile(isPipe);
     }
-    int close()
+    // Disable copy constructor
+    CurlFileReader(const CurlFileReader&) = delete;
+    // Disable copy
+    CurlFileReader& operator=(const CurlFileReader&) = delete;
+
+    void setFilePath(const std::string& filepath)
+    {
+        this->filepath = filepath;
+    }
+    void setFileMode(const std::string& filemode)
+    {
+        this->filemode = filemode;
+    }
+    void setPipeOrFile(bool isPipe)
+    {
+        this->bOpenPipe = isPipe;
+    }
+    int open() override
+    {
+        return open(filepath, filemode, bOpenPipe);
+    };
+    int close() override
     {
         if (fd)
         {
@@ -377,36 +468,22 @@ class CurlFileReader : public CurlReadWriteImpl
         }
         return 0;
     }
-    int open(const std::string& f, const std::string& m = "rb", bool isPipe = false)
-    {
-        close();
-        this->filename = f;
-        if (isPipe)
-        {
-            fd = popen(this->filename.c_str(), m.c_str());
-        } else
-        {
-            fd = fopen(this->filename.c_str(), m.c_str());
-        }
-        return fd ? 0 : -1;
-    }
-
     FILE* get()
     {
         return fd;
     }
 
-    bool isValid()
+    bool isValid() override
     {
         return get();
     }
 
-    bool isReader()
+    bool isReader() override
     {
         return true;
     }
 
-    size_t read(void* data, size_t nsz, size_t nmemb)
+    size_t read(void* data, size_t nsz, size_t nmemb) override
     {
         if (!fd)
         {
@@ -456,10 +533,10 @@ class CurlFileReader : public CurlReadWriteImpl
         } while (0);
         return ret;
     }
-    long getInFileSize()
+    long getInFileSize() override
     {
         long sz = 0;
-        getFileSize(filename, sz);
+        getFileSize(filepath, sz);
         return sz;
     }
 };
@@ -478,8 +555,13 @@ class CurlBufferWriter : public CurlReadWriteImpl
    public:
     CurlBufferWriter(size_t bufsz = 1024 * 128)
     {
+        this->bufsz = bufsz;
+    }
+    int open() override
+    {
         setupBufferSize(bufsz);
         clearBuffer();
+        return 0;
     }
     void setupBufferSize(size_t bufsz = 1024 * 128)
     {
@@ -506,17 +588,17 @@ class CurlBufferWriter : public CurlReadWriteImpl
         return bufsz;
     }
 
-    bool isValid()
+    bool isValid() override
     {
         return getBuffer() && getBufferSz() > 0;
     }
 
-    bool isReader()
+    bool isReader() override
     {
         return false;
     }
 
-    size_t write(void* data, size_t nsz, size_t nmemb)
+    size_t write(void* data, size_t nsz, size_t nmemb) override
     {
         auto len = nsz * nmemb;
         //
@@ -553,7 +635,11 @@ class CurlExternalBufferWriter : public CurlReadWriteImpl
     CurlExternalBufferWriter(uint8_t* buf, size_t bufsz)
     {
         setupExternalBuffer(buf, bufsz);
+    }
+    int open() override
+    {
         clearBuffer();
+        return 0;
     }
     void setupExternalBuffer(uint8_t* buf, size_t bufsz)
     {
@@ -579,17 +665,17 @@ class CurlExternalBufferWriter : public CurlReadWriteImpl
         return bufsz;
     }
 
-    bool isValid()
+    bool isValid() override
     {
         return getBuffer() && getBufferSz() > 0;
     }
 
-    bool isReader()
+    bool isReader() override
     {
         return false;
     }
 
-    size_t write(void* data, size_t nsz, size_t nmemb)
+    size_t write(void* data, size_t nsz, size_t nmemb) override
     {
         auto len = nsz * nmemb;
         //
@@ -773,7 +859,7 @@ class CurlWrapper
         return curl;
     }
 
-    static int perform(CURL* curl)
+    static int perform(CURL* curl, int64_t* p_http_code = NULL)
     {
         int ret = -1;
         //
@@ -784,13 +870,21 @@ class CurlWrapper
         ret = curl_easy_perform(curl);
         if (ret != CURLE_OK)
         {
+        } else
+        {
+            int64_t http_code = 0;
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+            if (p_http_code)
+            {
+                *p_http_code = http_code;
+            }
         }
 
         return 0;
     }
-    int perform()
+    int perform(int64_t* p_http_code = NULL)
     {
-        return perform(curl);
+        return perform(curl, p_http_code);
     }
 
     static int setUrl(CURL* curl, const std::string& url, int followLocation = 1, int ssl_verifypeer = 0)
@@ -1002,64 +1096,75 @@ class CurlFileDownloader : public PthreadWrapper
     //
     int m_errcode = -1;
     //
-    CurlFileWriter m_file_writer;
+    int64_t m_http_code = 0;
+    //
+    bool m_downloaded = false;
+    //
+    std::string m_filepath;
+    bool        b_tofile = false;
+    //
+    uint8_t* m_buf   = NULL;
+    size_t   m_bufsz = 0;
+    bool     b_tobuf = false;
     //
     CurlSetupReadWrite m_writer;
     //
-    std::string url, file;
+    std::string url;
     //
     int timeout_ms, timeout_conn_ms;
     //
-    int download(const std::string& url, const std::string& file, int timeout_ms, int timeout_conn_ms)
+    void resetState()
     {
-        int ret = -1;
         //
-        CurlWrapper m_curl_ctx;
+        m_errcode = -1;
         //
-        auto curl = m_curl_ctx.ptr();
-        if (!curl)
-        {
-            return ret;
-        }
+        m_http_code = 0;
         //
-        m_file_writer.open(file);
-        m_writer.setupIO(m_curl_ctx.ptr(), &m_file_writer);
-        //
-        CurlWrapper::setUrl(curl, url);
-        //
-        CurlWrapper::setupTimeout(curl, timeout_ms, timeout_conn_ms);
-        //
-        ret = CurlWrapper::perform(curl);
-
-        return ret;
+        m_downloaded = false;
     }
+    //
+    bool readyToRun() override
+    {
+        //
+        resetState();
+        //
+        return true;
+    }
+    //
     bool threadLoop() override
     {
         if (exitPending())
         {
             return false;
         }
-        download(url, file, timeout_ms, timeout_conn_ms);
+        download();
         return false;
     }
 
    public:
     CurlFileDownloader() = default;
-    CurlFileDownloader(const std::string& url, const std::string& file, int timeout_ms = -1, int timeout_conn_ms = -1)
+    CurlFileDownloader(const std::string& url, const std::string& filepath, int timeout_ms = -1, int timeout_conn_ms = -1)
     {
+        setupFile(filepath);
         setupUrl(url);
-        setupFile(file);
         setupTimeout(timeout_ms);
         setupConnTimeout(timeout_conn_ms);
+        //
+        resetState();
+    }
+    CurlFileDownloader(const std::string& url, void* buf, size_t bufsz, int timeout_ms = -1, int timeout_conn_ms = -1)
+    {
+        setupBuf(buf, bufsz);
+        setupUrl(url);
+        setupTimeout(timeout_ms);
+        setupConnTimeout(timeout_conn_ms);
+        //
+        resetState();
     }
 
     void setupUrl(const std::string& url)
     {
         this->url = url;
-    }
-    void setupFile(const std::string& file)
-    {
-        this->file = file;
     }
     void setupTimeout(int timeout_ms)
     {
@@ -1069,20 +1174,101 @@ class CurlFileDownloader : public PthreadWrapper
     {
         this->timeout_conn_ms = timeout_conn_ms;
     }
+
+    void setupFile(const std::string& filepath)
+    {
+        m_filepath = filepath;
+        b_tofile   = true;
+        b_tobuf    = false;
+    }
+    void setupBuf(void* buf, size_t bufsz)
+    {
+        m_buf    = (uint8_t*)buf;
+        m_bufsz  = bufsz;
+        b_tofile = false;
+        b_tobuf  = true;
+    }
+    //
+    int download(const std::string& url, CurlReadWriteImpl& writer, int timeout_ms, int timeout_conn_ms)
+    {
+        //
+        resetState();
+        //
+        CurlWrapper m_curl_ctx;
+        //
+        auto curl = m_curl_ctx.ptr();
+        if (!curl)
+        {
+            return -1;
+        }
+        //
+        m_writer.setupIO(m_curl_ctx.ptr(), &writer);
+        //
+        CurlWrapper::setUrl(curl, url);
+        //
+        CurlWrapper::setupTimeout(curl, timeout_ms, timeout_conn_ms);
+        //
+        m_errcode = CurlWrapper::perform(curl, &m_http_code);
+        //
+        m_writer.closeIO();
+        //
+        if (m_errcode == 0 && (m_http_code == 0 || m_http_code == 200))
+        {
+            m_downloaded = true;
+        }
+
+        return m_downloaded ? 0 : -1;
+    }
+    //
+    int download(const std::string& filepath)
+    {
+        CurlFileWriter writer(filepath);
+        OS_LOGV("tofile: %s", filepath.c_str());
+        return download(url, writer, timeout_ms, timeout_conn_ms);
+    }
+    //
+    int download(void* buf, size_t bufsz)
+    {
+        CurlExternalBufferWriter writer((uint8_t*)buf, bufsz);
+        OS_LOGV("tobuf: %p, sz:%zu", buf, bufsz);
+        return download(url, writer, timeout_ms, timeout_conn_ms);
+    }
+    //
+    int download()
+    {
+        int ret = -1;
+        //
+        resetState();
+        //
+        if (b_tofile)
+        {
+            ret = download(m_filepath);
+        } else if (b_tobuf)
+        {
+            ret = download(m_buf, m_bufsz);
+        } else
+        {
+            ret = -1;
+        }
+        return ret;
+    }
+    //
     void requestExit() override
     {
         m_writer.cancel();
     }
-    
-    bool run(const char* task_name = NULL)
-    {
-        m_errcode = -1;
-        //
-        return PthreadWrapper::run(task_name);
-    }
+
     int getErrcode()
     {
         return m_errcode;
+    }
+    int64_t getHttpCode()
+    {
+        return m_http_code;
+    }
+    bool isDownloaded()
+    {
+        return m_downloaded;
     }
 
     CurlSetupReadWrite* getWriter()

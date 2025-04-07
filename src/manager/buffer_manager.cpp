@@ -10,6 +10,12 @@
 #include "cpp_helper/cpphelper_pthread.hpp"
 #include "utils/os_tools.h"
 
+//
+#if defined(OS_LOG_TAG)
+    #undef OS_LOG_TAG
+    #define OS_LOG_TAG "BufM"
+#endif
+
 
 
 void BufferManager::BufferItem::init(void *buf, int bufsz, bool b_copy, void *pool)

@@ -13,6 +13,7 @@ $(call get_relative_dir, rpathd)
 # -include ${rpathd}/lib_protobuf.mk
 # -include ${rpathd}/lib_qrencode.mk
 # -include ${rpathd}/lib_curl.mk
+# -include ${rpathd}/lib_zlib.mk
 # -include ${rpathd}/lib_openssl.mk
 
 # -include ${rpathd}/lib_alsa.mk

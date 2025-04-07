@@ -6,9 +6,16 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "cpp_helper/cpphelper_pthread.hpp"
 #include "utils/arg_parser.h"
 #include "utils/os_tools.h"
-#include "cpp_helper/cpphelper_pthread.hpp"
+
+//
+#if defined(OS_LOG_TAG)
+    #undef OS_LOG_TAG
+    #define OS_LOG_TAG "CmdM"
+#endif
+
 
 namespace
 {
@@ -36,6 +43,11 @@ class CmdlineArgParser
 
     int reg(const ArgumentData& data)
     {
+        {
+            //
+            auto pdata = &data;
+            OS_LOGV("'%c', name=%s, hasArg:%s, cb:%p", pdata->val, pdata->name, pdata->has_arg ? "true" : "false", pdata->atArgExist);
+        }
         PthreadMutex::Writelock _l(m_mtx);
         //
         m_parsers[data.val] = data;
@@ -50,6 +62,11 @@ class CmdlineArgParser
         if (itr == m_parsers.end())
         {
             return 0;
+        }
+        {
+            //
+            auto pdata = &itr->second;
+            OS_LOGV("'%c', name=%s, hasArg:%s, cb:%p", pdata->val, pdata->name, pdata->has_arg ? "true" : "false", pdata->atArgExist);
         }
         m_parsers.erase(itr);
         return 1;
