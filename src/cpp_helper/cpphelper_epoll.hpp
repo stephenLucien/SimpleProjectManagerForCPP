@@ -340,7 +340,7 @@ class EpollHelper : PthreadWrapper
         return 0;
     }
 
-    static int fd_timeout_event(int* pret, int fd, int timeout_ms, std::function<void(int fd, int event, void* pret)> func)
+    static int fd_timeout_event(void* pret, int fd, int timeout_ms, std::function<void(int fd, int event, void* pret)> func)
     {
         EpollHelper ep;
         //
@@ -349,7 +349,7 @@ class EpollHelper : PthreadWrapper
         return ep.check(timeout_ms);
     }
 
-    static int fd_timeout_read(int* pret, int fd, int timeout_ms, std::function<void(int fd, int event, void* pret)> func)
+    static int fd_timeout_read(void* pret, int fd, int timeout_ms, std::function<void(int fd, int event, void* pret)> func)
     {
         EpollHelper ep;
         //
@@ -358,7 +358,7 @@ class EpollHelper : PthreadWrapper
         return ep.check(timeout_ms);
     }
 
-    static int fd_timeout_write(int* pret, int fd, int timeout_ms, std::function<void(int fd, int event, void* pret)> func)
+    static int fd_timeout_write(void* pret, int fd, int timeout_ms, std::function<void(int fd, int event, void* pret)> func)
     {
         EpollHelper ep;
         //

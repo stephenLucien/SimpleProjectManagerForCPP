@@ -127,7 +127,7 @@ static int buffertest_end(int num, void *data)
 }
 REG_CLEANUP_FUNC(buffertest_end, buffertest_end, NULL)
 
-int test_buffer_manager(int reason, void *userdata)
+static int test_buffer_manager(int reason, void *userdata)
 {
     //
     OS_LOGD("buffer manager test begin.");
