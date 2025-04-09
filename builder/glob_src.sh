@@ -2,21 +2,21 @@
 
 #
 function test_cmd_exist_only() {
-    local TMP_CMD="$1"
-    which ${TMP_CMD} >/dev/null 2>&1
-    if test $? -ne 0; then
-        test -n "${TMP_CMD}" && echo "${TMP_CMD} not found!!!"
-    fi
+	local TMP_CMD="$1"
+	which ${TMP_CMD} >/dev/null 2>&1
+	if test $? -ne 0; then
+		test -n "${TMP_CMD}" && echo "${TMP_CMD} not found!!!"
+	fi
 }
 
 #
 function test_cmd_exist_exit() {
-    local TMP_CMD="$1"
-    which ${TMP_CMD} >/dev/null 2>&1
-    if test $? -ne 0; then
-        test -n "${TMP_CMD}" && echo "${TMP_CMD} not found!!!"
-        exit 1
-    fi
+	local TMP_CMD="$1"
+	which ${TMP_CMD} >/dev/null 2>&1
+	if test $? -ne 0; then
+		test -n "${TMP_CMD}" && echo "${TMP_CMD} not found!!!"
+		exit 1
+	fi
 }
 
 test_cmd_exist_exit bash
@@ -25,8 +25,6 @@ test_cmd_exist_exit dirname
 test_cmd_exist_exit realpath
 test_cmd_exist_exit awk
 test_cmd_exist_exit seq
-
-
 
 SCRIPT_DIR=$(dirname $(realpath $BASH_SOURCE))
 
@@ -122,6 +120,23 @@ function glob_cxx_source_files() {
 	glob_file "${CXX_SRC_RULE_LIST}" "${CXX_SRC_LIST}"
 }
 
+function pretty_print_args() {
+	local args=($@)
+	local idx
+	local tmpcmd
+	# newline
+	echo ' \'
+	for idx in $(seq 1 $#); do
+		# print an arg at one line
+		tmpcmd="echo -n \${args[$(($idx - 1))]}"
+		eval $tmpcmd
+		echo ' \'
+	done
+	# newline
+	echo ""
+}
+export -f pretty_print_args
+
 function glob_list_to_mk() {
 	local SRC_RELATIVE_PATH="$(cat ${RELATIVE_PATH})"
 	local STRIP_PATH
@@ -147,6 +162,26 @@ function glob_list_to_mk() {
 	done
 	echo ""
 
+	local GLOB_THIRDPARTY_LIBS=()
+	if test -d "${SRC_DIR}/thirdparty/libs"; then
+		local tmpar
+		for tmpar in $(ls ${SRC_DIR}/thirdparty/libs/lib*.a); do
+			if test -e "$tmpar"; then
+				local tmp_ar_filename=$(basename "$tmpar")
+				GLOB_THIRDPARTY_LIBS+=(-l:${tmp_ar_filename})
+			fi
+		done
+		local tmpso
+		for tmpso in $(ls ${SRC_DIR}/thirdparty/libs/lib*.so); do
+			if test -e "$tmpso"; then
+				local tmp_so_filename=$(basename "$tmpso")
+				local tmp_libname0=${tmp_so_filename:3}
+				local tmp_libname1=${tmp_libname0%.so}
+				GLOB_THIRDPARTY_LIBS+=(-l${tmp_libname1})
+			fi
+		done
+	fi
+
 	cat >${SRC_MK} <<EOF
 # glob by ${BASH_SOURCE}
 
@@ -155,8 +190,12 @@ STRIP_PATH = ${STRIP_PATH}
 INCLUDES += -I${SRC_RELATIVE_PATH}
 INCLUDES += -I${SRC_RELATIVE_PATH}/thirdparty
 
-C_SRCS = ${C_SRCS[@]}
-CXX_SRCS = ${CXX_SRCS[@]}
+LDFLAGS += -I${SRC_RELATIVE_PATH}/thirdparty/libs
+LIBS +=$(pretty_print_args ${GLOB_THIRDPARTY_LIBS[@]})
+
+C_SRCS =$(pretty_print_args ${C_SRCS[@]})
+
+CXX_SRCS =$(pretty_print_args ${CXX_SRCS[@]})
 
 C_OBJS = \$(patsubst \${STRIP_PATH}%, ${OBJ_DIR}/%.c.o, \${C_SRCS})
 CXX_OBJS = \$(patsubst \${STRIP_PATH}%, ${OBJ_DIR}/%.cxx.o, \${CXX_SRCS})
@@ -197,6 +236,8 @@ EOF
 # LDFLAGS += -Wl,--gc-sections
 
 TARGET = ${TARGET_NAME}
+
+.PHONY: \${TARGET}
 
 WHOLE_OBJS_ARCHIVE = objs.whole.a
 
