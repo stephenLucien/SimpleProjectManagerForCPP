@@ -29,7 +29,7 @@ REG_CMDLINE_ARG_PARSE_FUNC(1, 't', "test", 1, {
     //
     if (_param)
     {
-        tests_name = str_split(_param, " ");
+        tests_name = str_split(_param, ",");
     }
 })
 
