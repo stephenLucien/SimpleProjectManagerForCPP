@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <cstddef>
 #include <cstring>
+#include <memory>
 #include <vector>
 
 
@@ -70,20 +71,26 @@ class InotifyTester : public PthreadWrapper
     }
 };
 
-static InotifyTester m_tester;
-static InotifyHelper m_helper;
+static std::shared_ptr<InotifyTester> m_tester;
+static std::shared_ptr<InotifyHelper> m_helper;
 };  // namespace
 
 static int inotify_helper_end(int num, void *data)
 {
-    if (!(m_tester.isRunning() || m_helper.isRunning()))
+    if (!((m_tester && m_tester->isRunning()) || (m_helper && m_helper->isRunning())))
     {
         return 0;
     }
     //
     OS_LOGD("inotify_helper test end0.");
-    m_tester.requestExitAndWait(1000);
-    m_helper.requestExitAndWait(2000);
+    if (m_tester)
+    {
+        m_tester->requestExitAndWait(1000);
+    }
+    if (m_helper)
+    {
+        m_helper->requestExitAndWait(2000);
+    }
     //
     OS_LOGD("inotify_helpertest end1.");
     return 0;
@@ -97,11 +104,20 @@ static int test_inotify_helper(int reason, void *userdata)
     //
     InotifyTester::touch(m_test_path);
     //
-    m_helper.addWatch(m_test_path);
+    m_helper = std::make_shared<InotifyHelper>();
     //
-    m_helper.tryRun("InotifyHelper");
+    if (m_helper)
+    {
+        m_helper->addWatch(m_test_path);
+        //
+        m_helper->tryRun("InotifyHelper");
+    }
+    m_tester = std::make_shared<InotifyTester>();
     //
-    m_tester.tryRun();
+    if (m_tester)
+    {
+        m_tester->tryRun();
+    }
 
     return 0;
 }
