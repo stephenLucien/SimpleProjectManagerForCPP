@@ -4,7 +4,7 @@
 
 
 #include <nlohmann/json.hpp>
-#include "JsonClassAPI.hpp"
+#include "MyJsonParser/JsonClassAPI.hpp"
 
 class TestJsonClassAPI : public nlohmannUser::JsonClassAPI
 {

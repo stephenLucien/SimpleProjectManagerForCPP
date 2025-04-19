@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <vector>
 
 #ifdef __cplusplus
 extern "C" {
@@ -83,11 +84,13 @@ static inline int write_text_file(const std::string &path, const std::string &st
     return write_data_to_file(path.c_str(), str.c_str(), str.length());
 }
 
-static inline std::string read_text_file(const std::string &path, const std::string &def = std::string())
+static inline std::string read_text_file(const std::string &path, const std::string &def = std::string(), size_t bufsz = 1024 * 128)
 {
     int read_cnt = -1;
     //
-    std::string res = read_data_from_file(path.c_str(), (char *)__builtin_alloca(4096), 4096, &read_cnt);
+    std::vector<char> buf(bufsz);
+    //
+    std::string res = read_data_from_file(path.c_str(), buf.data(), buf.size(), &read_cnt);
     if (read_cnt >= 0)
     {
         return res;

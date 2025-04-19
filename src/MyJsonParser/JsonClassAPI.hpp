@@ -10,7 +10,7 @@
 
 //
 #include <nlohmann/json.hpp>
-#include "utils/os_tools_system.h"
+// #include "utils/os_tools_system.h"
 
 namespace nlohmannUser
 {
@@ -86,23 +86,23 @@ class JsonClassAPI
         return _toJson().dump(indent);
     }
     //
-    int fromJsonFile(const std::string& fp, size_t bufsz = 1024 * 128)
-    {
-        if (!bufsz)
-        {
-            return -1;
-        }
-        std::vector<char> buf(bufsz);
-        memset(buf.data(), 0, bufsz);
-        read_data_from_file(fp.c_str(), buf.data(), bufsz - 1, NULL);
-        //
-        return fromJsonString(buf.data());
-    }
+    // int fromJsonFile(const std::string& fp, size_t bufsz = 1024 * 128)
+    // {
+    //     if (!bufsz)
+    //     {
+    //         return -1;
+    //     }
+    //     std::vector<char> buf(bufsz);
+    //     memset(buf.data(), 0, bufsz);
+    //     read_data_from_file(fp.c_str(), buf.data(), bufsz - 1, NULL);
+    //     //
+    //     return fromJsonString(buf.data());
+    // }
     //
-    int toJsonFile(const std::string& fp, int intent = -1)
-    {
-        return write_text_file(fp, toJsonString(intent));
-    }
+    // int toJsonFile(const std::string& fp, int intent = -1)
+    // {
+    //     return write_text_file(fp, toJsonString(intent));
+    // }
     //
     bool isValid() const
     {

@@ -11,10 +11,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "JsonClassAPI.hpp"
+#include "MyJsonParser/JsonClassAPI.hpp"
 #include "globJsonFile.h"
 #include "utils/cstring_proc.h"
 #include "utils/os_tools_log.h"
+#include "utils/os_tools_system.h"
 
 
 
@@ -692,7 +693,7 @@ mIsValid = false;
             //
             JsonClassApiHelper h;
             //
-            h.fromJsonFile(fp);
+            h.fromJsonString(read_text_file(fp));
             //
             if (!h.isValid())
             {
