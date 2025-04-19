@@ -3,15 +3,20 @@
 
 
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 
 //
 #include <nlohmann/json.hpp>
+#include "utils/os_tools_system.h"
 
 namespace nlohmannUser
 {
 #define nlohmannUserArrayContainer(type) std::vector<type>
+#define UNUSED_JS_KEY(key)
+#define UNUSED_JS_ARR_KEY(key)
 
 class JsonClassAPI
 {
@@ -81,6 +86,24 @@ class JsonClassAPI
         return _toJson().dump(indent);
     }
     //
+    int fromJsonFile(const std::string& fp, size_t bufsz = 1024 * 128)
+    {
+        if (!bufsz)
+        {
+            return -1;
+        }
+        std::vector<char> buf(bufsz);
+        memset(buf.data(), 0, bufsz);
+        read_data_from_file(fp.c_str(), buf.data(), bufsz - 1, NULL);
+        //
+        return fromJsonString(buf.data());
+    }
+    //
+    int toJsonFile(const std::string& fp, int intent = -1)
+    {
+        return write_text_file(fp, toJsonString(intent));
+    }
+    //
     bool isValid() const
     {
         return _isValid();
@@ -139,25 +162,28 @@ class JsonClassAPI
         return value;
     }
     //
-    static bool _JsonToValue(const nlohmann::json& js, double& value, double def = 0.0)
+    template <class T>
+    static bool _JsonToValue(const nlohmann::json& js, T& value, T def = 0.0)
     {
         value = def;
         if (!js.is_number())
         {
             return false;
         }
-        value = js.get<decltype(def)>();
+        value = js.get<T>();
         return true;
     }
     //
-    static double _JsonToValueRet(const nlohmann::json& js, double def = 0.0)
+    template <class T>
+    static T _JsonToValueRet(const nlohmann::json& js, T def = 0.0)
     {
         auto value = def;
         _JsonToValue(js, value, def);
         return value;
     }
     //
-    static bool _JsonGetValue(const nlohmann::json& js, const std::string& key, double& value, double def = 0.0)
+    template <class T>
+    static bool _JsonGetValue(const nlohmann::json& js, const std::string& key, T& value, T def = 0.0)
     {
         value = def;
         //
@@ -180,7 +206,8 @@ class JsonClassAPI
         return _JsonToValue(*itr, value, def);
     }
     //
-    static double _JsonGetValueRet(const nlohmann::json& js, const std::string& key, double def = 0.0)
+    template <class T>
+    static T _JsonGetValueRet(const nlohmann::json& js, const std::string& key, T def = 0.0)
     {
         auto value = def;
         //
@@ -333,7 +360,7 @@ class JsonClassAPI
         return cnt;
     }
     //
-    static size_t _JsonToArrayValue(const nlohmann::json& js, nlohmannUserArrayContainer(double) & array, bool dropInvalid = true)
+    static size_t _JsonToArrayInt(const nlohmann::json& js, nlohmannUserArrayContainer(int64_t) & array, bool dropInvalid = true)
     {
         size_t cnt = 0;
         //
@@ -362,7 +389,66 @@ class JsonClassAPI
         return cnt;
     }
     //
-    static size_t _JsonGetArrayValue(const nlohmann::json& js,
+    static size_t _JsonGetArrayInt(const nlohmann::json& js,
+                                   const std::string&    key,
+                                   nlohmannUserArrayContainer(int64_t) & array,
+                                   bool dropInvalid = true)
+    {
+        size_t cnt = 0;
+        //
+        array.clear();
+        //
+        if (!js.is_object())
+        {
+            return cnt;
+        }
+        //
+        if (key.empty())
+        {
+            return cnt;
+        }
+        //
+        auto itr = js.find(key);
+        if (itr == js.end())
+        {
+            return cnt;
+        }
+        //
+        cnt = _JsonToArrayInt(*itr, array, dropInvalid);
+        //
+        return cnt;
+    }
+    //
+    static size_t _JsonToArrayFloat(const nlohmann::json& js, nlohmannUserArrayContainer(double) & array, bool dropInvalid = true)
+    {
+        size_t cnt = 0;
+        //
+        array.clear();
+        //
+        if (!js.is_array())
+        {
+            return cnt;
+        }
+        //
+        array.reserve(js.size());
+        //
+        for (const auto& e : js)
+        {
+            double value;
+            //
+            auto ret = _JsonToValue(e, value);
+            //
+            if (ret || !dropInvalid)
+            {
+                array.push_back(value);
+                ++cnt;
+            }
+        }
+
+        return cnt;
+    }
+    //
+    static size_t _JsonGetArrayFloat(const nlohmann::json& js,
                                      const std::string&    key,
                                      nlohmannUserArrayContainer(double) & array,
                                      bool dropInvalid = true)
@@ -387,7 +473,7 @@ class JsonClassAPI
             return cnt;
         }
         //
-        cnt = _JsonToArrayValue(*itr, array, dropInvalid);
+        cnt = _JsonToArrayFloat(*itr, array, dropInvalid);
         //
         return cnt;
     }
@@ -486,7 +572,7 @@ class JsonClassAPI
     }
     //
     template <class T>
-    static size_t _JsonGetArrayClass(const nlohmann::json& js, const std::string& key, nlohmannUserArrayContainer(T) & array, bool dropInvalid = true)
+    static size_t _JsonGetArrayClass(const nlohmann::json& js, const std::string& key, nlohmannUserArrayContainer(T) & array)
     {
         size_t cnt = 0;
         //

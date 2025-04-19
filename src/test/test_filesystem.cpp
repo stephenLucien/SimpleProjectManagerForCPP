@@ -10,8 +10,11 @@
 #include <iostream>
 #include <string>
 //
+#include "json2cppclass/Json2Class.hpp"
+#include "json2cppclass/globJsonFile.h"
 #include "manager/test_manager.h"
 #include "utils/os_tools_log.h"
+#include "utils/os_tools_system.h"
 
 namespace fs = std::filesystem;
 
@@ -20,23 +23,21 @@ static std::string m_top_dir = "Json2ClassTest";
 static int test_dir_itr(int reason, void* userdata)
 {
     int ret = -1;
-    // cd m_top_dir
-    fs::current_path(m_top_dir);
     //
-    auto current_dir = fs::current_path();
+    auto jsFiles = glob_json_file(m_top_dir);
     //
-    std::cout << "Current path is " << current_dir << '\n';
-    //
-    for (auto const& dir_entry : fs::recursive_directory_iterator(current_dir))
+    for (auto& e : jsFiles)
     {
-        if (dir_entry.is_directory())
-        {
-            continue;
-        }
-        auto file = fs::relative(dir_entry.path(), current_dir);
-        OS_LOGD("dirname: %s", file.parent_path().c_str());
-        OS_LOGD("fn: %s", file.filename().c_str());
-        OS_LOGD("ext: %s", file.extension().c_str());
+        std::string ns, cn;
+        //
+        auto c = JsonToClassFactory::path2class(e, ns, cn);
+        //
+        OS_LOGD("path: %s, ns:(%s), cn:(%s), c:(%s)", e.c_str(), ns.c_str(), cn.c_str(), c.c_str());
+        //
+        std::string rns, rcn;
+        JsonToClassFactory::splitClass2Name(c, rns, rcn);
+        //
+        OS_LOGD("path: %s, ns:(%s), cn:(%s), c:(%s)", e.c_str(), rns.c_str(), rcn.c_str(), c.c_str());
     }
 
 
@@ -77,3 +78,18 @@ static int test_glob_json_file(int reason, void* userdata)
 }
 
 REG_TEST_FUNC(test_glob_json_file, test_glob_json_file, NULL)
+
+
+static int test_jsonclass_glob(int reason, void* userdata)
+{
+    auto output = JsonToClassFactory::genHpp(m_top_dir);
+    //
+    auto hppf = "src/json2cppclass/AutoJs.hpp";
+    write_text_file(hppf, output);
+
+    SYSTEM("clang-format -i %s", hppf);
+
+    return 0;
+}
+
+REG_TEST_FUNC(test_jsonclass_glob, test_jsonclass_glob, NULL)
