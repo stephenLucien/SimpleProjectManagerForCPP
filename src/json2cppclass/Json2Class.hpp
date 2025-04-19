@@ -153,8 +153,10 @@ class JsonToClassFactory
         }
 
        public:
-        static std::string testJsObjGenOneLevelClass(std::pair<std::string, JsonClassApiHelper>&            input,
-                                                     std::list<std::pair<std::string, JsonClassApiHelper>>& leftClass)
+        static std::string Json2ClassOneLevel(const std::pair<std::string, JsonClassApiHelper>&      input,
+                                              std::list<std::pair<std::string, JsonClassApiHelper>>& leftClass,
+                                              std::list<std::string>&                                refClass,
+                                              std::string&                                           parent_ns)
         {
             std::string output;
             //
@@ -166,8 +168,13 @@ class JsonToClassFactory
             //
             splitClass2Name(input_name, input_ns, input_cn);
             //
+            if (parent_ns.empty())
+            {
+                parent_ns = input_ns;
+            }
+            //
             output += "namespace ";
-            output += input_ns;
+            output += parent_ns;
             output += " {\n";
             //
             output += "class ";
@@ -285,6 +292,8 @@ mIsValid = false;
                     } else
                     {
                         //
+                        refClass.push_back(c);
+                        //
                         snprintf(buf, sizeof(buf), "//\n%s %s;\n", c.c_str(), key.c_str());
                         eleString += buf;
                         //
@@ -303,8 +312,8 @@ mIsValid = false;
                 }
                 if (value.is_object())
                 {
-                    auto tmpCn      = std::string("Cl_") + key;
-                    auto subObjName = input_name.empty() ? tmpCn : input_name + "::" + tmpCn;
+                    auto tmpCn      = input_cn + std::string("_Scl_") + key;
+                    auto subObjName = parent_ns.empty() ? tmpCn : parent_ns + "::" + tmpCn;
                     //
                     JsonClassApiHelper tmph;
                     //
@@ -360,6 +369,8 @@ mIsValid = false;
                         {
                             continue;
                         }
+                        //
+                        refClass.push_back(c);
                         //
                         snprintf(buf, sizeof(buf), "//\nnlohmannUserArrayContainer(%s) %s;\n", c.c_str(), key.c_str());
                         eleString += buf;
@@ -520,8 +531,8 @@ mIsValid = false;
                     }
                     if (pel->is_object())
                     {
-                        auto tmpCn      = std::string("Cle_") + key;
-                        auto subObjName = input_name.empty() ? tmpCn : input_name + "::" + tmpCn;
+                        auto tmpCn      = input_cn + std::string("_Scle_") + key;
+                        auto subObjName = parent_ns.empty() ? tmpCn : parent_ns + "::" + tmpCn;
                         //
                         JsonClassApiHelper tmph;
                         //
@@ -615,7 +626,7 @@ mIsValid = false;
             //
             output += "\n";
             output += "} // namespace ";
-            output += input_ns;
+            output += parent_ns;
             output += "\n";
             //
             output += "\n";
@@ -623,10 +634,43 @@ mIsValid = false;
         }
     };
 
-    static std::unordered_map<std::string, JsonClassApiHelper> globJsonClass(const std::string& path)
+    static std::string Json2Class(const std::pair<std::string, JsonToClassFactory::JsonClassApiHelper>& input, std::list<std::string>& refClass)
     {
         //
-        std::unordered_map<std::string, JsonClassApiHelper> data;
+        std::list<std::pair<std::string, JsonToClassFactory::JsonClassApiHelper>> leftClass;
+        //
+        leftClass.push_back(input);
+        //
+        std::string parent_ns;
+        //
+        std::list<std::string> genStr;
+
+        while (!leftClass.empty())
+        {
+            auto el = leftClass.front();
+            leftClass.pop_front();
+            auto str = JsonToClassFactory::JsonClassApiHelper::Json2ClassOneLevel(el, leftClass, refClass, parent_ns);
+            //
+            genStr.push_back(str);
+        }
+
+        //
+        std::string output;
+
+        for (auto ritr = genStr.rbegin(); ritr != genStr.rend(); ++ritr)
+        {
+            output += *ritr;
+        }
+        output += "\n";
+
+        return output;
+    }
+
+
+    static std::unordered_map<std::string, std::pair<std::string, JsonClassApiHelper>> globJsonClass(const std::string& path)
+    {
+        //
+        std::unordered_map<std::string, std::pair<std::string, JsonClassApiHelper>> data;
         //
         auto jsFiles = glob_json_file(path);
         //
@@ -656,40 +700,9 @@ mIsValid = false;
             }
 
             //
-            data[c] = h;
+            data[f] = {c, h};
         }
         return data;
-    }
-
-    static std::string genHpp(const std::string& path)
-    {
-        auto jsclass = JsonToClassFactory::globJsonClass(path);
-        //
-        std::list<std::pair<std::string, JsonToClassFactory::JsonClassApiHelper>> leftClass;
-        for (auto& c : jsclass)
-        {
-            leftClass.push_back(c);
-        }
-        std::string output = R"(
-#pragma once
-#include <cstddef>
-#include <cstdint>
-#include <nlohmann/json.hpp>
-#include "JsonClassAPI.hpp"
-
-      )";
-
-        while (!leftClass.empty())
-        {
-            auto el = leftClass.front();
-            leftClass.pop_front();
-            auto str = JsonToClassFactory::JsonClassApiHelper::testJsObjGenOneLevelClass(el, leftClass);
-            //
-            output += str;
-        }
-        output += "\n";
-
-        return output;
     }
 };
 
