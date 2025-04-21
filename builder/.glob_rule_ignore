@@ -21,51 +21,7 @@ find ../src -name '*.CC'
 # uncomment the following line to disable log redirection to file
 echo "../src/utils/os_tools_log_redirect.cpp"
 
-# depends on nanogui
-echo ../src/app/app_nanogui.cpp
-
 # os_loop impl for console
 # echo ../src/app/app_console.cpp
 
-# depends on opencv
-echo ../src/test/test_opencv2.cpp
-
-# depends on libcurl
-# echo ../src/utils/curl_wrapper.cpp
-# echo ../src/test/test_curl_wrapper.cpp
-
-# depends on openssl
-# echo ../src/utils/crypto_tools_openssl.cpp
-# echo ../src/test/test_base64_openssl.cpp
-
-# depends on qrencode
-echo ../src/qrcode/qrcode_content_wifi.cpp
-echo ../src/qrcode/qrcode.cpp
-echo ../src/test/test_qrcode.cpp
-
-# depends on libalsa
-echo ../src/alsa_user/pcm_player.cpp
-
-# sqlite
-echo ../src/test/test_sqlite3.cpp
-
-# buffer manager
-# echo ../src/manager/buffer_manager.cpp
-# echo ../src/test/test_buffer_manager.cpp
-
-# os net tools
-# echo ../src/utils/os_tools_net.cpp
-# echo ../src/utils/os_tools_net_ifaces.cpp
-# echo ../src/utils/os_tools_net_socket.cpp
-# echo ../src/test/test_netstatus_manager.cpp
-# echo ../src/test/test_ifaces.cpp
-# echo ../src/test/test_os_tools_net.cpp
-
-# test
-# echo ../src/test/test_text_file_readwrite.cpp
-
-# std container tests
-# echo ../src/test/test_ordered_multimap.cpp
-# echo ../src/test/test_unordered_multimap.cpp
-# echo ../src/test/test_map.cpp
-# echo ../src/test/test_list.cpp
+echo ../src/test/a_test_demo.cpp
