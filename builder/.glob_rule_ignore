@@ -24,4 +24,5 @@ echo "../src/utils/os_tools_log_redirect.cpp"
 # os_loop impl for console
 # echo ../src/app/app_console.cpp
 
-echo ../src/test/a_test_demo.cpp
+# ignore test demo
+echo ../src/test/a_demo_for_*.cpp
