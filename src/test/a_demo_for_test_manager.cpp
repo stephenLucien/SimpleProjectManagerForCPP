@@ -8,19 +8,12 @@
 //
 #include "utils/os_tools_log.h"
 
-#define ES(tag, code)                                 \
-    static int test_##tag(int reason, void* userdata) \
-    {                                                 \
-        OS_LOGD("");                                  \
-        {code};                                       \
-        return 0;                                     \
-    }                                                 \
-    REG_TEST_FUNC(test_##tag, test_##tag, NULL)
-
-ES(tag,
-   /* test code block BEGIN */
-   {
-       //
-   } /* test code block END */
-
-)
+EASY_SETUP_TEST_FUNC(tag)
+/* test code block BEGIN */
+{
+    int ret = -1;
+    //
+    OS_LOGD("");
+    //
+    return 0;
+} /* test code block END */

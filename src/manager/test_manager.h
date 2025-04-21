@@ -23,6 +23,13 @@ int run_tests(int reason = 0);
         reg_test(#tag, func, (void*)data);                         \
     }
 
+#define EASY_SETUP_TEST_FUNC(tag)                                                    \
+    static int                               test_##tag(int reason, void* userdata); \
+    __attribute__((constructor)) static void reg_test_func_##tag()                   \
+    {                                                                                \
+        reg_test("test_" #tag, test_##tag, (void*)NULL);                             \
+    }                                                                                \
+    static int test_##tag(int reason, void* userdata)
 
 #ifdef __cplusplus
 }
