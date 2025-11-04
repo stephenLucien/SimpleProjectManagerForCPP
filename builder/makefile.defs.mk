@@ -3,20 +3,21 @@
 $(call get_relative_dir, rpathd)
 # $(call get_absolute_dir, apathd)
 
--include ${rpathd}/compile_flags_begin.mk
+ifeq ($(IS_CLANG), true)
+-include ${rpathd}/clang_flags_begin.mk
+else
+-include ${rpathd}/gcc_flags_begin.mk
+endif
 
-
-# -include ${rpathd}/lib_nanogui.mk
-# -include ${rpathd}/lib_glew.mk
-
-# -include ${rpathd}/lib_opencv4.mk
-# -include ${rpathd}/lib_protobuf.mk
-# -include ${rpathd}/lib_qrencode.mk
 # -include ${rpathd}/lib_curl.mk
-# -include ${rpathd}/lib_zlib.mk
 # -include ${rpathd}/lib_openssl.mk
+# -include ${rpathd}/lib_zlib.mk
+# -include ${rpathd}/lib_opencv4.mk
+# -include ${rpathd}/lib_cjson.mk
 
-# -include ${rpathd}/lib_alsa.mk
-# -include ${rpathd}/lib_sqlite3.mk
+ifeq ($(IS_CLANG), true)
+-include ${rpathd}/clang_flags_end.mk
+else
+-include ${rpathd}/gcc_flags_end.mk
+endif
 
--include ${rpathd}/compile_flags_end.mk

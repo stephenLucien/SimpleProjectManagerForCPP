@@ -1,7 +1,24 @@
 #!/bin/bash
 
-# FIXME: gcc PATH
-TOOLCHAIN_BIN_DIR=${TOOLCHAIN_BIN_DIR="$(dirname "$(which gcc)")"}
+export IS_CLANG=true
+
+function escape_win_path() {
+	local TMPPATH="$(realpath "$1")"
+	if test "$(uname)" = "Linux"; then
+		echo "$TMPPATH"
+	else
+		which cygpath >/dev/null
+		if test $? -ne 0; then
+			echo "$TMPPATH"
+		else
+			cygpath -m "$TMPPATH"
+		fi
+	fi
+}
+export -f escape_win_path
+
+# FIXME: clang PATH
+TOOLCHAIN_BIN_DIR=${TOOLCHAIN_BIN_DIR="$(escape_win_path "$(dirname "$(which clang)")")"}
 if test -d "${TOOLCHAIN_BIN_DIR}"; then
 	export PATH="${TOOLCHAIN_BIN_DIR}:$PATH"
 fi
@@ -10,8 +27,10 @@ fi
 TOOLCHAIN_TRIPLE=${TOOLCHAIN_TRIPLE=""}
 if test -n "${TOOLCHAIN_TRIPLE}"; then
 	export CROSS_COMPILE="${TOOLCHAIN_TRIPLE}-"
+	export CLANG_TARGET="--target=${TOOLCHAIN_TRIPLE}"
 fi
-SYSROOT_DEFAULT=$("${CROSS_COMPILE}gcc" --print-sysroot | sed -e 's/\\/\//g')
+
+SYSROOT_DEFAULT=""
 
 # FIXME:
 SYSROOT=${SYSROOT="${SYSROOT_DEFAULT}"}
@@ -43,11 +62,11 @@ EXPORT_TOOLCHAIN=${EXPORT_TOOLCHAIN=true}
 
 # FIXME:
 CFLAGS=${CFLAGS=""}
-CFLAGS="${CFLAGS} ${SYSROOT_CFLAGS}"
+CFLAGS="${CLANG_TARGET} ${CFLAGS} ${SYSROOT_CFLAGS}"
 export CFLAGS
 
 CXXFLAGS=${CXXFLAGS=""}
-CXXFLAGS="${CXXFLAGS} ${SYSROOT_CFLAGS}"
+CXXFLAGS="${CLANG_TARGET} ${CXXFLAGS} ${SYSROOT_CFLAGS}"
 export CXXFLAGS
 
 CPPFLAGS=${CPPFLAGS=""}
@@ -59,13 +78,13 @@ export LDFLAGS
 LIBS=${LIBS=""}
 export LIBS
 
-CC=${CC="${CROSS_COMPILE}gcc"}
-CXX=${CXX="${CROSS_COMPILE}g++"}
-AR=${AR="${CROSS_COMPILE}ar"}
-RANLIB=${RANLIB="${CROSS_COMPILE}ranlib"}
-ADDR2LINE=${ADDR2LINE="${CROSS_COMPILE}addr2line"}
-OBJCPY=${OBJCPY="${CROSS_COMPILE}objcopy"}
-STRIP=${STRIP="${CROSS_COMPILE}strip"}
+CC=${CC=clang}
+CXX=${CXX=clang++}
+AR=${AR=llvm-ar}
+RANLIB=${RANLIB=llvm-ranlib}
+ADDR2LINE=${ADDR2LINE=llvm-addr2line}
+OBJCPY=${OBJCPY=llvm-objcopy}
+STRIP=${STRIP=llvm-strip}
 
 function export_toolchain() {
 	export CC
@@ -80,3 +99,9 @@ function export_toolchain() {
 if test "${EXPORT_TOOLCHAIN}" = "true"; then
 	export_toolchain
 fi
+
+CLANG_RT_DIR="$(escape_win_path "$(clang --print-runtime-dir)")"
+# for Linux
+export LD_LIBRARY_PATH="${CLANG_RT_DIR}:${LD_LIBRARY_PATH}"
+# for Windows
+export PATH="${CLANG_RT_DIR}:${PATH}"

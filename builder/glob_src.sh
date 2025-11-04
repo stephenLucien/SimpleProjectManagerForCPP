@@ -209,10 +209,12 @@ ifneq (\$(strip \${DEPS}),)
 endif
 
 ${OBJ_DIR}/%.c.o: \${STRIP_PATH}%
-	\$(CC) \$(CFLAGS) \$(INCLUDES) \$(CPPFLAGS) -c -MMD -MP -MF"\$(@:%.c.o=%.d)" -MT"\$(@)" -o "\$@" "\$<"
+	@echo compiling "\$<"
+	@\$(CC) \$(CFLAGS) \$(INCLUDES) \$(CPPFLAGS) -c -MMD -MP -MF"\$(@:%.c.o=%.d)" -MT"\$(@)" -o "\$@" "\$<"
 
 ${OBJ_DIR}/%.cxx.o: \${STRIP_PATH}%
-	\$(CXX) \$(CXXFLAGS) \$(INCLUDES) \$(CPPFLAGS) -c -MMD -MP -MF"\$(@:%.cxx.o=%.d)" -MT"\$(@)" -o "\$@" "\$<"
+	@echo compiling "\$<"
+	@\$(CXX) \$(CXXFLAGS) \$(INCLUDES) \$(CPPFLAGS) -c -MMD -MP -MF"\$(@:%.cxx.o=%.d)" -MT"\$(@)" -o "\$@" "\$<"
 
 EOF
 
@@ -237,11 +239,11 @@ EOF
 
 TARGET = ${TARGET_NAME}
 
-.PHONY: \${TARGET}
+.PHONY: \${TARGET} \${TARGET}.gnu_debuglink
 
 WHOLE_OBJS_ARCHIVE = objs.whole.a
 
-all: dump_compile_info \${TARGET}
+all: dump_compile_info \${TARGET} \${TARGET}.gnu_debuglink
 
 -include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${DEFS_MK})
 
@@ -254,12 +256,25 @@ all: dump_compile_info \${TARGET}
 
 include $(basename ${SRC_MK})
 
+\${TARGET}.gnu_debuglink: \${TARGET}.strip \${TARGET}.symbols
+	@\${OBJCPY} --add-gnu-debuglink=\${TARGET}.symbols \${TARGET}.strip  
+
+\${TARGET}.strip: \${TARGET}
+	@\${OBJCPY} --strip-debug \$< \$@
+
+\${TARGET}.symbols: \${TARGET}
+	@\${OBJCPY} --only-keep-debug \$< \$@
+
 \${TARGET}: \${WHOLE_OBJS_ARCHIVE}
-	\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) -Wl,--whole-archive \$^ -Wl,--no-whole-archive \$(LIBS) -o \$@
+ifeq (\$(IS_WINDOWS), true)
+	@\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) -Wl,/WHOLEARCHIVE:\$^ \$(LIBS) -o \$@
+else
+	@\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) -Wl,--whole-archive \$^ -Wl,--no-whole-archive \$(LIBS) -o \$@
+endif
 
 \${WHOLE_OBJS_ARCHIVE}: \${OBJS}
 	@rm -f \$@
-	\$(AR) rcsP \$@ $^
+	@\$(AR) rcsP \$@ $^
 
 .PHONY: c_compiler cxx_compiler cppflags
 c_compiler:
@@ -272,7 +287,7 @@ cppflags:
 dump_compile_info: c_compiler cxx_compiler cppflags
 
 clean::
-	rm -rf \${OBJS} \${DEPS}
+	@rm -rf \${OBJS} \${DEPS}
 
 -include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${TARGET_MK})
 

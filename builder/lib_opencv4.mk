@@ -1,2 +1,2 @@
-# pkgconf --list-all | awk '{print $1}' | grep opencv
+# add opencv4
 $(call pkgconf_add, opencv4)
