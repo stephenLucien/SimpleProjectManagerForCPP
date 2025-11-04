@@ -1,0 +1,3 @@
+- read all markdown files in folder `${workspaceFolder}/cline_tasks` to understand your tasks
+- Break down complex tasks into smaller subtasks
+- save your own understandings of the tasks as markdown files into folder `${workspaceFolder}/cline_tasks_breakdown`

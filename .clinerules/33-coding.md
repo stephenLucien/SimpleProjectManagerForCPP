@@ -1,0 +1,12 @@
+- using c coding language with stdc11 standard
+- prefer object-oriented coding style, like ffmpeg
+- each module finally should be wrapped into C API in `*.h` header, and instances are used by (void*) pointer (called `handle`).
+- use `extern "C"` if Macro '__cplusplus' defined
+- use doxygen style comments for functions and structure
+- Tests are required for functions or modules, but dont use `main` entry for testing, just give a C API like `${module_name}_test_${what}` and called this API in `main` entry
+- header file for the source file placed into the same directory, like test.h placed into where test.c located
+- place all project source files into directory `${workspaceFolder}/src` or its subdirectory, each module prefer a unique subdirectory
+  - Code for `Module1` put into : `${workspaceFolder}/src/Module1`
+  - tests Code for `Module1` put into : `${workspaceFolder}/src/Module1/tests`
+- `main` entry prefer put into `${workspaceFolder}/src/main.c`, and tests are run by calling test_function like `${module_name}_test_${what}`
+- prefer self-contained code
