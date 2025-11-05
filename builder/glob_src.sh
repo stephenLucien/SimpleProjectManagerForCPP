@@ -3,7 +3,7 @@
 #
 function test_cmd_exist_only() {
 	local TMP_CMD="$1"
-	which ${TMP_CMD} >/dev/null 2>&1
+	which "${TMP_CMD}" >/dev/null 2>&1
 	if test $? -ne 0; then
 		test -n "${TMP_CMD}" && echo "${TMP_CMD} not found!!!"
 	fi
@@ -12,7 +12,7 @@ function test_cmd_exist_only() {
 #
 function test_cmd_exist_exit() {
 	local TMP_CMD="$1"
-	which ${TMP_CMD} >/dev/null 2>&1
+	which "${TMP_CMD}" >/dev/null 2>&1
 	if test $? -ne 0; then
 		test -n "${TMP_CMD}" && echo "${TMP_CMD} not found!!!"
 		exit 1
@@ -26,33 +26,33 @@ test_cmd_exist_exit realpath
 test_cmd_exist_exit awk
 test_cmd_exist_exit seq
 
-SCRIPT_DIR=$(dirname $(realpath $BASH_SOURCE))
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
-SRC_DIR=${SRC_DIR=${SCRIPT_DIR}/../src}
-BUILD_DIR=${BUILD_DIR=${SCRIPT_DIR}/../build}
-TARGET_NAME=${TARGET_NAME=exec}
+SRC_DIR="${SRC_DIR="${SCRIPT_DIR}/../src"}"
+BUILD_DIR="${BUILD_DIR="${SCRIPT_DIR}/../build"}"
+TARGET_NAME="${TARGET_NAME="exec"}"
 
-ABS_SRC_DIR=$(realpath $SRC_DIR)
-ABS_BUILD_DIR=$(realpath $BUILD_DIR)
-GLOB_RULES_DIR=${GLOB_RULES_DIR=${SCRIPT_DIR}}
+ABS_SRC_DIR="$(realpath "$SRC_DIR")"
+ABS_BUILD_DIR="$(realpath "$BUILD_DIR")"
+GLOB_RULES_DIR="${GLOB_RULES_DIR="${SCRIPT_DIR}"}"
 
-test -d "${ABS_SRC_DIR}" || mkdir -p ${ABS_SRC_DIR}
-test -d "${ABS_BUILD_DIR}" || mkdir -p ${ABS_BUILD_DIR}
-test -d "${GLOB_RULES_DIR}" || mkdir -p ${GLOB_RULES_DIR}
+test -d "${ABS_SRC_DIR}" || mkdir -p "${ABS_SRC_DIR}"
+test -d "${ABS_BUILD_DIR}" || mkdir -p "${ABS_BUILD_DIR}"
+test -d "${GLOB_RULES_DIR}" || mkdir -p "${GLOB_RULES_DIR}"
 
-C_SRC_RULE_LIST=${GLOB_RULES_DIR}/.glob_rule_c
-CXX_SRC_RULE_LIST=${GLOB_RULES_DIR}/.glob_rule_cxx
-IGNORE_SRC_RULE_LIST=${GLOB_RULES_DIR}/.glob_rule_ignore
+C_SRC_RULE_LIST="${GLOB_RULES_DIR}/.glob_rule_c"
+CXX_SRC_RULE_LIST="${GLOB_RULES_DIR}/.glob_rule_cxx"
+IGNORE_SRC_RULE_LIST="${GLOB_RULES_DIR}/.glob_rule_ignore"
 
-RELATIVE_PATH=${ABS_BUILD_DIR}/.glob_relative
-C_SRC_LIST=${ABS_BUILD_DIR}/.glob_c
-CXX_SRC_LIST=${ABS_BUILD_DIR}/.glob_cxx
-IGNORE_SRC_LIST=${ABS_BUILD_DIR}/.glob_ignore
-SRC_MK=${ABS_BUILD_DIR}/src.mk
-ENTRY_MK=${ABS_BUILD_DIR}/makefile
-INIT_MK=${GLOB_RULES_DIR}/makefile.init.mk
-DEFS_MK=${GLOB_RULES_DIR}/makefile.defs.mk
-TARGET_MK=${GLOB_RULES_DIR}/makefile.target.mk
+RELATIVE_PATH="${ABS_BUILD_DIR}/.glob_relative"
+C_SRC_LIST="${ABS_BUILD_DIR}/.glob_c"
+CXX_SRC_LIST="${ABS_BUILD_DIR}/.glob_cxx"
+IGNORE_SRC_LIST="${ABS_BUILD_DIR}/.glob_ignore"
+SRC_MK="${ABS_BUILD_DIR}/src.mk"
+ENTRY_MK="${ABS_BUILD_DIR}/makefile"
+INIT_MK="${GLOB_RULES_DIR}/makefile.init.mk"
+DEFS_MK="${GLOB_RULES_DIR}/makefile.defs.mk"
+TARGET_MK="${GLOB_RULES_DIR}/makefile.target.mk"
 
 # relative to ${ENTRY_MK}
 OBJ_DIR=objs
@@ -60,7 +60,7 @@ OBJ_DIR=objs
 function find_line() {
 	local F="$1"
 	local L="$2"
-	echo "" | cat "$F" - | while read LINE; do
+	echo "" | cat "$F" - | while read -r LINE; do
 		if test -z "${L}"; then
 			break
 		fi
@@ -80,41 +80,41 @@ function exclude_file() {
 	local INC_LIST="$1"
 	local EXC_LIST="$2"
 	local RES
-	echo "" | cat "${INC_LIST}" - | while read LINE; do
+	echo "" | cat "${INC_LIST}" - | while read -r LINE; do
 		if test -z "${LINE}"; then
 			continue
 		fi
 		RES=$(find_line "$EXC_LIST" "$LINE")
 		if test "${RES}" = "0"; then
-			echo $LINE
+			echo "$LINE"
 		fi
 	done
 }
 
 function glob_file() {
-	local RULE_LIST=$(realpath "$1")
+	local RULE_LIST="$(realpath "$1")"
 	local TMP_RULE
 	local TMP_FILE
-	local GLOB_LIST=$(realpath "$2")
-	local REF_DIR=$(dirname ${GLOB_LIST})
+	local GLOB_LIST="$(realpath "$2")"
+	local REF_DIR="$(dirname "${GLOB_LIST}")"
 	if test -e "${RULE_LIST}"; then
 		(
-			cd $(dirname ${RULE_LIST})
-			echo "" | cat ${RULE_LIST} - | while read LINE; do
-				TMP_RULE=$(echo $LINE | awk -F'#' '{print $1}')
+			cd "$(dirname "${RULE_LIST}")"
+			echo "" | cat "${RULE_LIST}" - | while read -r LINE; do
+				TMP_RULE="$(echo "$LINE" | awk -F'#' '{print $1}')"
 				# echo "${TMP_RULE}"
 				if test -n "$TMP_RULE"; then
-					eval "$TMP_RULE" | while read TMP_FILE; do
-						realpath -m --relative-to=${REF_DIR} $TMP_FILE
+					eval "$TMP_RULE" | while read -r TMP_FILE; do
+						realpath -m --relative-to="${REF_DIR}" "$TMP_FILE"
 					done
 				fi
-			done >${GLOB_LIST}
+			done >"${GLOB_LIST}"
 		)
 	fi
 }
 
 function glob_cxx_source_files() {
-	realpath -m --relative-to=${ABS_BUILD_DIR} ${ABS_SRC_DIR} >${RELATIVE_PATH}
+	realpath -m --relative-to="${ABS_BUILD_DIR}" "${ABS_SRC_DIR}" >"${RELATIVE_PATH}"
 	glob_file "${IGNORE_SRC_RULE_LIST}" "${IGNORE_SRC_LIST}"
 	glob_file "${C_SRC_RULE_LIST}" "${C_SRC_LIST}"
 	glob_file "${CXX_SRC_RULE_LIST}" "${CXX_SRC_LIST}"
@@ -125,12 +125,12 @@ function pretty_print_args() {
 	local idx
 	local tmpcmd
 	# newline
-	echo ' \'
+	echo ' '\\
 	for idx in $(seq 1 $#); do
 		# print an arg at one line
-		tmpcmd="echo -n \${args[$(($idx - 1))]}"
-		eval $tmpcmd
-		echo ' \'
+		tmpcmd="echo -n \${args[$((idx - 1))]}"
+		eval "$tmpcmd"
+		echo ' '\\
 	done
 	# newline
 	echo ""
@@ -138,7 +138,7 @@ function pretty_print_args() {
 export -f pretty_print_args
 
 function glob_list_to_mk() {
-	local SRC_RELATIVE_PATH="$(cat ${RELATIVE_PATH})"
+	local SRC_RELATIVE_PATH="$(cat "${RELATIVE_PATH}")"
 	local STRIP_PATH
 	if test "${SRC_RELATIVE_PATH}" = "" -o "${SRC_RELATIVE_PATH}" = "."; then
 		STRIP_PATH=""
@@ -149,7 +149,7 @@ function glob_list_to_mk() {
 	C_SRCS=($(exclude_file "${C_SRC_LIST}" "${IGNORE_SRC_LIST}" | tr '\n' ' '))
 	echo "C sources(cnt=${#C_SRCS[@]}):"
 	for TMP_ELE_POS in $(seq 1 1 ${#C_SRCS[@]}); do
-		TMP_ELE_IDX=$(($TMP_ELE_POS - 1))
+		TMP_ELE_IDX=$((TMP_ELE_POS - 1))
 		echo "${C_SRCS[$TMP_ELE_IDX]}"
 	done
 	echo ""
@@ -157,7 +157,7 @@ function glob_list_to_mk() {
 	CXX_SRCS=($(exclude_file "${CXX_SRC_LIST}" "${IGNORE_SRC_LIST}" | tr '\n' ' '))
 	echo "CXX sources(cnt=${#CXX_SRCS[@]}):"
 	for TMP_ELE_POS in $(seq 1 1 ${#CXX_SRCS[@]}); do
-		TMP_ELE_IDX=$(($TMP_ELE_POS - 1))
+		TMP_ELE_IDX=$((TMP_ELE_POS - 1))
 		echo "${CXX_SRCS[$TMP_ELE_IDX]}"
 	done
 	echo ""
@@ -165,32 +165,32 @@ function glob_list_to_mk() {
 	local GLOB_THIRDPARTY_LIBS=()
 	if test -d "${SRC_DIR}/thirdparty/libs"; then
 		local tmpar
-		for tmpar in $(ls ${SRC_DIR}/thirdparty/libs/lib*.a); do
+		for tmpar in "${SRC_DIR}"/thirdparty/libs/lib*.a; do
 			if test -e "$tmpar"; then
-				local tmp_ar_filename=$(basename "$tmpar")
-				GLOB_THIRDPARTY_LIBS+=(-l:${tmp_ar_filename})
+				local tmp_ar_filename="$(basename "$tmpar")"
+				GLOB_THIRDPARTY_LIBS+=(-l:"${tmp_ar_filename}")
 			fi
 		done
 		local tmpso
-		for tmpso in $(ls ${SRC_DIR}/thirdparty/libs/lib*.so); do
+		for tmpso in "${SRC_DIR}"/thirdparty/libs/lib*.so; do
 			if test -e "$tmpso"; then
-				local tmp_so_filename=$(basename "$tmpso")
-				local tmp_libname0=${tmp_so_filename:3}
-				local tmp_libname1=${tmp_libname0%.so}
-				GLOB_THIRDPARTY_LIBS+=(-l${tmp_libname1})
+				local tmp_so_filename="$(basename "$tmpso")"
+				local tmp_libname0="${tmp_so_filename:3}"
+				local tmp_libname1="${tmp_libname0%.so}"
+				GLOB_THIRDPARTY_LIBS+=(-l"${tmp_libname1}")
 			fi
 		done
 	fi
 
-	cat >${SRC_MK} <<EOF
-# glob by ${BASH_SOURCE}
+	cat >"${SRC_MK}" <<EOF
+# glob by ${BASH_SOURCE[0]}
 
 STRIP_PATH = ${STRIP_PATH}
 
 INCLUDES += -I${SRC_RELATIVE_PATH}
 INCLUDES += -I${SRC_RELATIVE_PATH}/thirdparty
 
-LDFLAGS += -I${SRC_RELATIVE_PATH}/thirdparty/libs
+LDFLAGS += -L${SRC_RELATIVE_PATH}/thirdparty/libs
 LIBS +=$(pretty_print_args ${GLOB_THIRDPARTY_LIBS[@]})
 
 C_SRCS =$(pretty_print_args ${C_SRCS[@]})
@@ -218,9 +218,9 @@ ${OBJ_DIR}/%.cxx.o: \${STRIP_PATH}%
 
 EOF
 
-	cat >${ENTRY_MK} <<EOF
+	cat >"${ENTRY_MK}" <<EOF
 
--include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${INIT_MK})
+-include $(realpath -m --relative-to="$(dirname "${ENTRY_MK}")" "${INIT_MK}")
 
 # COM_COMPILE_FLAGS += -Os
 # COM_COMPILE_FLAGS += -fPIC
@@ -243,9 +243,13 @@ TARGET = ${TARGET_NAME}
 
 WHOLE_OBJS_ARCHIVE = objs.whole.a
 
+ifeq (\$(IS_WINDOWS), true)
+all: dump_compile_info \${TARGET}
+else
 all: dump_compile_info \${TARGET} \${TARGET}.gnu_debuglink
+endif
 
--include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${DEFS_MK})
+-include $(realpath -m --relative-to="$(dirname "${ENTRY_MK}")" "${DEFS_MK}")
 
 # \$(call rm_duplicate,CFLAGS)
 # \$(call rm_duplicate,CXXFLAGS)
@@ -254,7 +258,7 @@ all: dump_compile_info \${TARGET} \${TARGET}.gnu_debuglink
 # \$(call rm_duplicate,LDFLAGS)
 # \$(call rm_duplicate,LIBS)
 
-include $(basename ${SRC_MK})
+include $(basename "${SRC_MK}")
 
 \${TARGET}.gnu_debuglink: \${TARGET}.strip \${TARGET}.symbols
 	@\${OBJCPY} --add-gnu-debuglink=\${TARGET}.symbols \${TARGET}.strip  
@@ -276,30 +280,38 @@ endif
 	@rm -f \$@
 	@\$(AR) rcsP \$@ $^
 
-.PHONY: c_compiler cxx_compiler cppflags
+.PHONY: c_compiler c_flags cxx_compiler cxx_flags cppflags ldflags libs
 c_compiler:
 	@echo \$(CC) >\$@
+c_flags:
+	@echo \$(CFLAGS) >\$@
 cxx_compiler:
 	@echo \$(CXX) >\$@
+cxx_flags:
+	@echo \$(CXXFLAGS) >\$@
 cppflags:
 	@echo \$(INCLUDES) \$(CPPFLAGS) >\$@
+ldflags:
+	@echo \$(LDFLAGS) >\$@
+libs:
+	@echo \$(LIBS) >\$@
 
-dump_compile_info: c_compiler cxx_compiler cppflags
+dump_compile_info: c_compiler c_flags cxx_compiler cxx_flags cppflags ldflags libs
 
 clean::
 	@rm -rf \${OBJS} \${DEPS}
 
--include $(realpath -m --relative-to=$(dirname ${ENTRY_MK}) ${TARGET_MK})
+-include $(realpath -m --relative-to="$(dirname "${ENTRY_MK}")" "${TARGET_MK}")
 
 EOF
 
 	(
-		cd ${ABS_BUILD_DIR}
-		rm -rf ${OBJ_DIR}/
-		cat ${C_SRC_LIST} ${CXX_SRC_LIST} | while read SF; do
-			OF=${OBJ_DIR}/${SF#${STRIP_PATH}}.o
+		cd "${ABS_BUILD_DIR}"
+		rm -rf "${OBJ_DIR:?}/"
+		cat "${C_SRC_LIST}" "${CXX_SRC_LIST}" | while read -r SF; do
+			OF=${OBJ_DIR}/${SF#"${STRIP_PATH}"}.o
 			# echo $OF
-			mkdir -p $(dirname ${OF})
+			mkdir -p "$(dirname "${OF}")"
 		done
 	)
 
