@@ -32,12 +32,13 @@ SRC_DIR="${SRC_DIR="${SCRIPT_DIR}/../src"}"
 BUILD_DIR="${BUILD_DIR="${SCRIPT_DIR}/../build"}"
 TARGET_NAME="${TARGET_NAME="exec"}"
 
+test -d "${SRC_DIR}" || mkdir -p "${SRC_DIR}"
 ABS_SRC_DIR="$(realpath "$SRC_DIR")"
-ABS_BUILD_DIR="$(realpath "$BUILD_DIR")"
-GLOB_RULES_DIR="${GLOB_RULES_DIR="${SCRIPT_DIR}"}"
 
-test -d "${ABS_SRC_DIR}" || mkdir -p "${ABS_SRC_DIR}"
-test -d "${ABS_BUILD_DIR}" || mkdir -p "${ABS_BUILD_DIR}"
+test -d "${BUILD_DIR}" || mkdir -p "${BUILD_DIR}"
+ABS_BUILD_DIR="$(realpath "$BUILD_DIR")"
+
+GLOB_RULES_DIR="${GLOB_RULES_DIR="${SCRIPT_DIR}"}"
 test -d "${GLOB_RULES_DIR}" || mkdir -p "${GLOB_RULES_DIR}"
 
 C_SRC_RULE_LIST="${GLOB_RULES_DIR}/.glob_rule_c"
@@ -92,11 +93,15 @@ function exclude_file() {
 }
 
 function glob_file() {
-	local RULE_LIST="$(realpath "$1")"
+	# local RULE_LIST="$(realpath "$1")"
+	local RULE_LIST="$1"
+	# local GLOB_LIST="$(realpath "$2")"
+	local GLOB_LIST="$2"
+
+	touch "${GLOB_LIST}"
+	local REF_DIR="$(dirname "$(realpath "${GLOB_LIST}")")"
 	local TMP_RULE
 	local TMP_FILE
-	local GLOB_LIST="$(realpath "$2")"
-	local REF_DIR="$(dirname "${GLOB_LIST}")"
 	if test -e "${RULE_LIST}"; then
 		(
 			cd "$(dirname "${RULE_LIST}")"
@@ -271,7 +276,11 @@ include $(basename "${SRC_MK}")
 
 \${TARGET}: \${WHOLE_OBJS_ARCHIVE}
 ifeq (\$(IS_WINDOWS), true)
+ifeq (\$(IS_CLANG), true)
 	@\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) -Wl,/WHOLEARCHIVE:\$^ \$(LIBS) -o \$@
+else
+	@\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) -Wl,--whole-archive \$^ -Wl,--no-whole-archive \$(LIBS) -o \$@
+endif
 else
 	@\$(CXX) \$(CXXFLAGS) \$(LDFLAGS) -Wl,--whole-archive \$^ -Wl,--no-whole-archive \$(LIBS) -o \$@
 endif

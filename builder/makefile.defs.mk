@@ -15,6 +15,8 @@ endif
 # -include ${rpathd}/lib_opencv4.mk
 # -include ${rpathd}/lib_cjson.mk
 
+# -include ${rpathd}/lib_eigen3.mk
+
 ifeq ($(IS_CLANG), true)
 -include ${rpathd}/clang_flags_end.mk
 else

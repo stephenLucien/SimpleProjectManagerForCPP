@@ -4,6 +4,10 @@ export IS_CLANG=true
 
 function escape_win_path() {
 	local TMPPATH="$(realpath "$1")"
+	if test $? -ne 0; then
+		echo "$1"
+		return
+	fi
 	if test "$(uname)" = "Linux"; then
 		echo "$TMPPATH"
 	else

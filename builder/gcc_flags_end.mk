@@ -1,4 +1,4 @@
 # 
 LIBS += -lstdc++
-LIBS += -ldl
-LIBS += -lpthread
+# LIBS += -ldl
+# LIBS += -lpthread

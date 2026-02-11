@@ -1,8 +1,9 @@
 # standard
 CFLAGS += -std=gnu11
-# CXXFLAGS += -std=gnu++14
+# CXXFLAGS += -std=gnu++11
+CXXFLAGS += -std=gnu++14
 # CXXFLAGS += -std=gnu++17
-CXXFLAGS += -std=gnu++20
+# CXXFLAGS += -std=gnu++20
 
 # optimize level
 # CFLAGS += -O0 -g

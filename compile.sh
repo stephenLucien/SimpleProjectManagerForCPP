@@ -40,7 +40,13 @@ TEST_NAME="$(uname)" # MINGW64_NT-10.0-26200
 echo "${TEST_NAME}" | grep -E '(MINGW|_NT)'
 #
 if test $? -eq 0; then
-	TARGET_HOST=${TARGET_HOST=win_clang}
+	export PATH="${PATH}:${SCRIPT_DIR}/win"
+	which gcc >/dev/null 2>&1
+	if test $? -eq 0; then
+		TARGET_HOST=${TARGET_HOST=win_gcc}
+	else
+		TARGET_HOST=${TARGET_HOST=win_clang}
+	fi
 else
 	TARGET_HOST=${TARGET_HOST=host_asan}
 fi
@@ -113,6 +119,10 @@ fi
 # sometimes it is needed to process PATH in Windows OS
 function escape_path() {
 	local TMPPATH="$(realpath "$1")"
+	if test $? -ne 0; then
+		echo "$1"
+		return
+	fi
 	if test "$(uname)" = "Linux"; then
 		echo "$TMPPATH"
 	else
@@ -178,9 +188,9 @@ function regen_clangd_config() {
 	if test -n "$TMP_COMPILER"; then
 		#
 		"${TMP_COMPILER}" -E -xc++ -v /dev/null 2>&1 | sed -e 's/\\/\//g' | while read -r LINE; do
-			TMPCNT="$(echo "$LINE" | grep -v '=' | awk -F'#' '{print $1}' | grep -oP '[[:graph:]]+' | wc -l)"
+			TMPCNT="$(echo "$LINE" | grep -v '=' | awk -F'#' '{print $1}' | grep -oE '[[:graph:]]+' | wc -l)"
 			if test "$TMPCNT" = "1"; then
-				TMPPATH="$(realpath "$(echo "$LINE" | grep -oP '[[:graph:]]+' | head -n 1)")"
+				TMPPATH="$(realpath "$(echo "$LINE" | grep -oE '[[:graph:]]+' | head -n 1)")"
 				# echo $TMPPATH
 				if test -d "${TMPPATH}"; then
 					echo -I"$(escape_path "${TMPPATH}")" >>"${BUILD_DIR}"/cppflags_strip
