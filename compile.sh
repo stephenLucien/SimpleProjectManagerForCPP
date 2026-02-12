@@ -392,13 +392,19 @@ cline_build)
 	check_tree
 	if test $? -eq 0; then
 		echo "tree unchanged"
+		echo "building..."
+		build_target
 	else
 		echo "tree changed"
+		echo "regenerating makefile..."
 		regen_mk
+		echo "generating compiledb..."
+		regen_compiledb >/dev/null 2>&1
+		echo "generating .clangd..."
+		regen_clangd_config ".clangd"
+		echo "rebuilding..."
+		rebuild_target
 	fi
-	regen_compiledb >/dev/null 2>&1
-	regen_clangd_config ".clangd"
-	rebuild_target
 	dump_time
 	echo ""
 	run_target $@
