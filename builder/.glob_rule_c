@@ -1,2 +1,1 @@
-#!/bin/bash
-find ../src -iname '*.c'
+find "${ABS_SRC_DIR}" -iname '*.c'

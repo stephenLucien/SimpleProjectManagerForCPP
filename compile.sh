@@ -136,10 +136,41 @@ function escape_path() {
 }
 export -f escape_path
 
+function create_tree() {
+	local TREE_LOG="$1"
+	find "${SRC_DIR}" >"${TREE_LOG}"
+}
+
+function check_tree() {
+	if test ! -f "${BUILD_DIR}"/tree.log; then
+		# echo "tree.log not found"
+		return 1
+	fi
+	local CUR_TREE_FILE="$(mktemp)"
+	create_tree "${CUR_TREE_FILE}"
+	if test $? -ne 0; then
+		# echo "SRC_DIR not found?"
+		return 1
+	fi
+
+	diff "${BUILD_DIR}"/tree.log "${CUR_TREE_FILE}" >/dev/null 2>&1
+	if test $? -eq 0; then
+		# echo "tree not changed"
+		rm "${CUR_TREE_FILE}"
+		return 0
+	else
+		# echo "tree changed"
+		rm "${CUR_TREE_FILE}"
+		return 1
+	fi
+}
+
 function regen_mk() {
 	rm -rf "${BUILD_DIR}"
 	"${SCRIPT_DIR}"/builder/glob_src.sh
 	test $? -ne 0 && exit 1
+	# save
+	create_tree "${BUILD_DIR}"/tree.log
 }
 
 # generate compile_commands.json if we have compiledb
@@ -358,7 +389,13 @@ cline_build)
 	;;
 *)
 	place_time_cursor $0 $@
-	regen_mk
+	check_tree
+	if test $? -eq 0; then
+		echo "tree unchanged"
+	else
+		echo "tree changed"
+		regen_mk
+	fi
 	regen_compiledb >/dev/null 2>&1
 	regen_clangd_config ".clangd"
 	rebuild_target
